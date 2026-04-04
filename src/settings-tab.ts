@@ -82,7 +82,7 @@ export class JournalSettingTab extends PluginSettingTab {
 				createFragment((f) => {
 					f.appendText("From ");
 					f.createEl("a", {
-						text: "@BotFather",
+						text: "@botfather",
 						href: "https://telegram.me/BotFather",
 						attr: {
 							target: "_blank",
@@ -95,7 +95,7 @@ export class JournalSettingTab extends PluginSettingTab {
 				})
 			)
 			.addText((text) => {
-				text.setPlaceholder("Paste bot token from @BotFather");
+				text.setPlaceholder("Paste bot token from @botfather");
 				setTooltip(
 					text.inputEl,
 					"Click the field to edit the full token. After you leave the field, only the first six characters stay readable."
@@ -132,7 +132,7 @@ export class JournalSettingTab extends PluginSettingTab {
 				})
 			)
 			.addText((text) => {
-				text.setPlaceholder("user1,12345678")
+				text.setPlaceholder("User1,12345678")
 					.setValue(this.plugin.settings.allow_users.join(","))
 					.onChange(async (value) => {
 						this.plugin.settings.allow_users = value
@@ -167,7 +167,7 @@ export class JournalSettingTab extends PluginSettingTab {
 					f.appendText(
 						"Messages before this clock time count toward the previous calendar day. Format HH:MM (24h). Cutoff times and journal timestamps use "
 					);
-					f.createEl("strong", { text: "this device’s local clock" });
+					f.createEl("strong", { text: "This device’s local clock" });
 					f.appendText(
 						" (the machine running Obsidian), not Telegram’s time zone."
 					);
@@ -186,7 +186,7 @@ export class JournalSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Timestamp heading per entry")
 			.setDesc(
-				"When enabled, each captured message is prefixed with a markdown heading (###) showing the message date and time (YYYY-MM-DD HH:mm). When off, only the message text is appended. If you edit the same daily note in Obsidian while a message is being saved, the vault usually merges writes; very fast simultaneous edits are rare."
+				"When enabled, each captured message is prefixed with a Markdown heading (###) showing the message date and time (yyyy-mm-dd hh:mm). When off, only the message text is appended. If you edit the same daily note in Obsidian while a message is being saved, the vault usually merges writes; very fast simultaneous edits are rare."
 			)
 			.addToggle((toggle) =>
 				toggle
@@ -204,7 +204,7 @@ export class JournalSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Plain text only (no Telegram formatting)")
 			.setDesc(
-				"When enabled, the raw message text or caption is stored (Telegram bold, links, etc. are not turned into Markdown). When off, Telegram entities are converted to Markdown (bold, italics, links, …), similar to telegram-inbox."
+				"When enabled, the raw message text or caption is stored (Telegram bold, links, etc. Are not turned into Markdown). When off, Telegram entities are converted to Markdown (bold, italics, links, …), similar to Telegram-inbox."
 			)
 			.addToggle((toggle) =>
 				toggle
@@ -219,7 +219,7 @@ export class JournalSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Escape Markdown when using formatting")
 			.setDesc(
-				"Only applies when plain text is off. Escapes special characters in the converted Markdown (Telegram MarkdownV2-style escaping)."
+				"Only applies when plain text is off. Escapes special characters in the converted Markdown (Telegram markdownv2-style escaping)."
 			)
 			.addToggle((toggle) => {
 				markdownEscaperToggle = toggle;
@@ -235,7 +235,7 @@ export class JournalSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Reply context in note")
 			.setDesc(
-				"When you reply to a message in Telegram, prepend a blockquote line (Re: …) with a short preview of the message you replied to, so the thread is visible in the note."
+				"When you reply to a message in Telegram, prepend a blockquote line (re: …) with a short preview of the message you replied to, so the thread is visible in the note."
 			)
 			.addToggle((toggle) =>
 				toggle
@@ -274,7 +274,7 @@ export class JournalSettingTab extends PluginSettingTab {
 			.setDesc("Folder path under the vault root (e.g. assets/telegram). Created if missing.")
 			.addText((text) =>
 				text
-					.setPlaceholder("assets/telegram")
+					.setPlaceholder("Assets/Telegram")
 					.setValue(this.plugin.settings.download_dir)
 					.onChange(async (value) => {
 						this.plugin.settings.download_dir = value.trim();
@@ -283,9 +283,9 @@ export class JournalSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(downloadDirContainer)
-			.setName("Wi‑Fi only (downloads)")
+			.setName("Wi‑fi only (downloads)")
 			.setDesc(
-				"When enabled, media downloads and transcription (audio download) run only if the browser reports Wi‑Fi or ethernet. If the connection type is unknown (typical on desktop), downloads are allowed. On Obsidian Mobile, large downloads may use cellular data unless this blocks them."
+				"When enabled, media downloads and transcription (audio download) run only if the browser reports wi‑fi or ethernet. If the connection type is unknown (typical on desktop), downloads are allowed. On Obsidian mobile, large downloads may use cellular data unless this blocks them."
 			)
 			.addToggle((toggle) =>
 				toggle
@@ -310,7 +310,7 @@ export class JournalSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Action after reception")
 			.setDesc(
-				"After your message is saved to the daily note, choose what the bot does in Telegram: leave the chat as-is, react with an emoji (pick Reaction and type the emoji in the field on the right), or delete the inbound message."
+				"After your message is saved to the daily note, choose what the bot does in Telegram: leave the chat as-is, react with an emoji (pick reaction and type the emoji in the field on the right), or delete the inbound message."
 			)
 			.setClass("tg-journal-after-saved")
 			.addDropdown((dropdown) => {
@@ -333,7 +333,7 @@ export class JournalSettingTab extends PluginSettingTab {
 					"Emoji the bot will react with (e.g. ❤️ 👍 🔥)."
 				);
 				text
-					.setPlaceholder("with ❤️")
+					.setPlaceholder("With ❤️")
 					.setValue(this.plugin.settings.reaction_emoji)
 					.onChange(async (value: string) => {
 						this.plugin.settings.reaction_emoji = value.trim() || "❤";
@@ -343,13 +343,13 @@ export class JournalSettingTab extends PluginSettingTab {
 			});
 
 		new Setting(containerEl)
-			.setName("Local transcription (Qwen ASR)")
+			.setName("Local transcription (qwen asr)")
 			.setHeading();
 
 		new Setting(containerEl)
 			.setName("Enable transcription")
 			.setDesc(
-				"Transcribe voice and audio messages via a local OpenAI-compatible server (e.g. mlx-qwen3-asr serve)."
+				"Transcribe voice and audio messages via a local openai-compatible server (e.g. Mlx-qwen3-asr serve)."
 			)
 			.addToggle((toggle) =>
 				toggle
@@ -361,8 +361,8 @@ export class JournalSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("ASR base URL")
-			.setDesc("OpenAI-compatible root, usually ending in /v1")
+			.setName("Asr base URL")
+			.setDesc("Openai-compatible root, usually ending in /v1")
 			.addText((text) =>
 				text
 					.setPlaceholder("http://127.0.0.1:8765/v1")
@@ -374,8 +374,8 @@ export class JournalSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("ASR API key")
-			.setDesc("Optional Bearer token if your local server requires it.")
+			.setName("Asr API key")
+			.setDesc("Optional bearer token if your local server requires it.")
 			.addText((text) => {
 				text.inputEl.type = "password";
 				text.setPlaceholder("")
@@ -387,13 +387,13 @@ export class JournalSettingTab extends PluginSettingTab {
 			});
 
 		new Setting(containerEl)
-			.setName("Hugging Face token (optional)")
+			.setName("Hugging face token (optional)")
 			.setDesc(
-				"Used only for “Refresh from Hugging Face” (and gated Hub listings). Not sent to your local ASR server. Store in vault settings; never share or log it."
+				"Used only for “refresh from hugging face” (and gated hub listings). Not sent to your local asr server. Store in vault settings; never share or log it."
 			)
 			.addText((text) => {
 				text.inputEl.type = "password";
-				text.setPlaceholder("hf_…")
+				text.setPlaceholder("Hf_…")
 					.setValue(this.plugin.settings.hf_token)
 					.onChange(async (value) => {
 						this.plugin.settings.hf_token = value.trim();
@@ -421,7 +421,7 @@ export class JournalSettingTab extends PluginSettingTab {
 		};
 
 		new Setting(containerEl)
-			.setName("ASR model")
+			.setName("Asr model")
 			.setDesc(
 				createFragment((f) => {
 					f.appendText(
@@ -429,7 +429,7 @@ export class JournalSettingTab extends PluginSettingTab {
 					);
 					f.appendText("See ");
 					f.createEl("a", {
-						text: "Local ASR setup (wiki)",
+						text: "Local asr setup (wiki)",
 						href: WIKI_LOCAL_ASR_SETUP_URL,
 						attr: {
 							target: "_blank",
@@ -448,7 +448,7 @@ export class JournalSettingTab extends PluginSettingTab {
 				}
 				dropdown.addOption(
 					CUSTOM_ASR_MODEL_DROPDOWN_VALUE,
-					"Other (custom id)…"
+					"Other (custom ID)…"
 				);
 				dropdown.setValue(initialDropdownValue);
 				dropdown.onChange(async (value) => {
@@ -465,14 +465,14 @@ export class JournalSettingTab extends PluginSettingTab {
 			});
 
 		new Setting(customModelContainer)
-			.setName("Custom model id")
+			.setName("Custom model ID")
 			.setDesc(
-				"Shown only for “Other”. This value is what the plugin sends to your local ASR server; prefetch weights on your machine via the button below (Obsidian cannot download models itself)."
+				"Shown only for “other”. This value is what the plugin sends to your local asr server; prefetch weights on your machine via the button below (Obsidian cannot download models itself)."
 			)
 			.addText((text) => {
 				modelTextField = text;
 				text
-					.setPlaceholder("org/model-name")
+					.setPlaceholder("Org/model-name")
 					.setValue(
 						initialDropdownValue === CUSTOM_ASR_MODEL_DROPDOWN_VALUE
 							? this.plugin.settings.asr_model
@@ -503,7 +503,7 @@ export class JournalSettingTab extends PluginSettingTab {
 						"Downloads the Hub snapshot into the Hugging Face cache using the same venv as asr:install (huggingface_hub). Set HF_TOKEN in .env for gated repos. Copy the command and run it in a terminal from the plugin source folder. Details: "
 					);
 					f.createEl("a", {
-						text: "wiki",
+						text: "Wiki",
 						href: WIKI_LOCAL_ASR_SETUP_URL,
 						attr: {
 							target: "_blank",
@@ -536,7 +536,7 @@ export class JournalSettingTab extends PluginSettingTab {
 				: "";
 
 		new Setting(containerEl)
-			.setName("Refresh ASR models from Hugging Face")
+			.setName("Refresh asr models from hugging face")
 			.setDesc(
 				`Loads ASR model ids from the public Hub JSON API (pipeline automatic-speech-recognition). Results are cached in plugin data for offline use.${lastRefreshHint}`
 			)
@@ -593,7 +593,7 @@ export class JournalSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Auto-refresh diagnostics log")
 			.setDesc(
-				"While this settings panel is open, reload the log from memory on a timer so you do not need to use Refresh."
+				"While this settings panel is open, reload the log from memory on a timer so you do not need to use refresh."
 			)
 			.addToggle((toggle) =>
 				toggle
