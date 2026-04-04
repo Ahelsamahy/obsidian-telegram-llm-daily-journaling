@@ -18,6 +18,24 @@ const args = process.argv.slice(2);
 const dryRun = args.includes("--dry-run");
 const bump = ["patch", "minor", "major"].find((b) => args.includes(b)) ?? "patch";
 
+function assertCleanWorkingTree() {
+	const r = spawnSync("git", ["status", "--porcelain"], {
+		encoding: "utf8",
+	});
+	if (r.status !== 0) {
+		process.exit(r.status ?? 1);
+	}
+	const dirty = (r.stdout ?? "").trim();
+	if (dirty) {
+		console.error(
+			"Git working tree is not clean — `npm version` will not run.\n" +
+				"Commit or stash all changes, then try again.\n\n" +
+				dirty
+		);
+		process.exit(1);
+	}
+}
+
 function run(name, cmdArgs, extraEnv = {}) {
 	const r = spawnSync(name, cmdArgs, {
 		stdio: "inherit",
@@ -26,6 +44,10 @@ function run(name, cmdArgs, extraEnv = {}) {
 	if (r.status !== 0 && r.status !== null) {
 		process.exit(r.status);
 	}
+}
+
+if (!dryRun) {
+	assertCleanWorkingTree();
 }
 
 console.log(`Release (${dryRun ? "dry-run" : bump})\n`);
