@@ -4,6 +4,7 @@ import { DEFAULT_SETTINGS, type JournalSettings } from "./settings/types";
 import type { JournalPluginApi } from "./settings/types";
 import { JournalSettingTab } from "./settings-tab";
 import { TelegramJournalBot } from "./bot/telegram-bot";
+import { fetchAsrModelsFromHuggingFace } from "./utils/huggingface-asr-models";
 
 export default class TelegramLlmDailyJournalPlugin
 	extends Plugin
@@ -90,6 +91,30 @@ export default class TelegramLlmDailyJournalPlugin
 		this.diagnosticLog.clear();
 	}
 
+	async refreshAsrModelsFromHuggingFace(): Promise<{
+		ok: boolean;
+		count: number;
+		error?: string;
+	}> {
+		const { ids, error } = await fetchAsrModelsFromHuggingFace(
+			this.settings.hf_token
+		);
+		if (ids.length === 0) {
+			const detail = error ?? "Unknown error";
+			this.appendDiagnosticLog(
+				`ASR model list refresh failed: ${detail}`
+			);
+			return { ok: false, count: 0, error: detail };
+		}
+		this.settings.asr_hf_model_ids_cache = ids;
+		this.settings.asr_hf_models_cache_epoch_ms = Date.now();
+		await this.saveSettings();
+		this.appendDiagnosticLog(
+			`ASR model list refreshed from Hugging Face (${ids.length} models).`
+		);
+		return { ok: true, count: ids.length };
+	}
+
 	async initBot(): Promise<void> {
 		try {
 			if (!this.settings.token) {
@@ -106,6 +131,16 @@ export default class TelegramLlmDailyJournalPlugin
 			await this.stopBot();
 			this.bot = new TelegramJournalBot(this.app.vault, this.settings, {
 				log: (m) => this.appendDiagnosticLog(m),
+				onJournalSaved: async () => {
+					this.settings.last_journal_saved_epoch_ms = Date.now();
+					await this.saveSettings();
+				},
+				getLastProcessedUpdateId: () =>
+					this.settings.last_processed_update_id,
+				persistProcessedUpdateId: async (updateId) => {
+					this.settings.last_processed_update_id = updateId;
+					await this.saveSettings();
+				},
 			});
 
 			if (!this.settings.disable_auto_reception) {

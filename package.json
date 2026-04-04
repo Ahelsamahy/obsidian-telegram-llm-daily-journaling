@@ -11,7 +11,8 @@
 		"test": "node --test --require tsx/cjs --require ./test/register-obsidian.cjs \"test/**/*.spec.ts\"",
 		"deploy:dev": "npm run build && node scripts/deploy-dev.mjs",
 		"asr:install": "bash scripts/asr-install.sh",
-		"asr:serve": "bash scripts/asr-serve.sh"
+		"asr:serve": "bash scripts/asr-serve.sh",
+		"asr:download-model": "bash scripts/asr-download-model.sh"
 	},
 	"keywords": [],
 	"license": "0-BSD",

@@ -21,10 +21,24 @@ export interface JournalSettings {
 	asr_base_url: string;
 	asr_api_key: string;
 	asr_model: string;
+	/** Optional Hugging Face token (gated models / authenticated Hub API). Never logged. */
+	hf_token: string;
+	/** Cached model ids from last successful “Refresh from Hugging Face”. */
+	asr_hf_model_ids_cache: string[];
+	/** Epoch ms when `asr_hf_model_ids_cache` was last updated. */
+	asr_hf_models_cache_epoch_ms: number;
 	/** When true, diagnostics textarea refreshes periodically while settings are open */
 	diagnostic_log_auto_refresh: boolean;
 	/** Seconds between auto-refreshes (1–30) */
 	diagnostic_log_auto_refresh_interval_sec: number;
+	/** Dedupe Telegram retries (same update_id is ignored after a successful run) */
+	last_processed_update_id: number;
+	/** Last time a journal line was written (ms since epoch); for /last */
+	last_journal_saved_epoch_ms: number;
+	/** Blockquote line “Re: …” when replying to another message */
+	include_reply_context: boolean;
+	/** When set, only download media on Wi‑Fi / ethernet if the browser reports it */
+	download_media_wifi_only: boolean;
 }
 
 export const DEFAULT_SETTINGS: JournalSettings = {
@@ -43,8 +57,15 @@ export const DEFAULT_SETTINGS: JournalSettings = {
 	asr_base_url: "http://127.0.0.1:8765/v1",
 	asr_api_key: "",
 	asr_model: "Qwen/Qwen3-ASR-0.6B",
+	hf_token: "",
+	asr_hf_model_ids_cache: [],
+	asr_hf_models_cache_epoch_ms: 0,
 	diagnostic_log_auto_refresh: true,
 	diagnostic_log_auto_refresh_interval_sec: 2,
+	last_processed_update_id: 0,
+	last_journal_saved_epoch_ms: 0,
+	include_reply_context: true,
+	download_media_wifi_only: false,
 };
 
 export interface JournalPluginApi {
@@ -57,4 +78,9 @@ export interface JournalPluginApi {
 	appendDiagnosticLog(message: string): void;
 	getDiagnosticLogText(): string;
 	clearDiagnosticLog(): void;
+	refreshAsrModelsFromHuggingFace(): Promise<{
+		ok: boolean;
+		count: number;
+		error?: string;
+	}>;
 }

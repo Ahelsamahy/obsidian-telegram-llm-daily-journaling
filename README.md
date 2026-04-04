@@ -1,8 +1,22 @@
 # Telegram LLM Daily Journaling
 
-Obsidian plugin that appends Telegram messages to your **daily note** (using the same resolution rules as the core **Daily Notes** / **Periodic Notes** setup via [`obsidian-daily-notes-interface`](https://github.com/liamcain/obsidian-daily-notes-interface)).
+Obsidian plugin that appends Telegram messages to your **daily note** (same date resolution as the core **Daily Notes** / **Periodic Notes** setup via [`obsidian-daily-notes-interface`](https://github.com/liamcain/obsidian-daily-notes-interface)).
 
-Optional: transcribe **voice** and **audio** messages with a **local** OpenAI-compatible ASR server (for example [mlx-qwen3-asr](https://github.com/moona3k/mlx-qwen3-asr) on Apple Silicon).
+Optional: transcribe **voice** and **audio** with a **local** OpenAI-compatible ASR server (for example [mlx-qwen3-asr](https://github.com/moona3k/mlx-qwen3-asr) on Apple Silicon).
+
+> **Development phase** — Behavior and settings may still change before a stable release. The plugin is usable day-to-day; treat the [Wiki roadmap](#wiki-roadmap) below as the plan for proper documentation once the surface area stabilizes.
+
+## Features (overview)
+
+- **Text** — Append to the daily note, with optional Telegram → Markdown entity conversion or plain text.
+- **Reply context** — Optional `> Re: …` line when you reply to a message in Telegram.
+- **Media** — Optional download into a vault folder and `![[path]]` embed; photos, videos, stickers, documents, etc. (see settings).
+- **Voice / audio** — Optional local transcription, or file download when transcription is off.
+- **After save** — In Telegram: no action, reaction, or delete the message.
+- **Diagnostics** — In-plugin log (with optional auto-refresh) for debugging.
+- **Resilience** — Duplicate Telegram `update_id` handling, file size limits aligned with the Bot API, optional Wi‑Fi–only downloads where the browser exposes network type.
+
+Commands in Telegram: `/start`, `/help`, `/last` (last successful append time on this device).
 
 ## Requirements
 
@@ -12,10 +26,11 @@ Optional: transcribe **voice** and **audio** messages with a **local** OpenAI-co
 
 ## Setup
 
-1. Install the plugin (build from source or copy `main.js`, `manifest.json`, `styles.css` into `.obsidian/plugins/telegram-llm-daily-journaling/`).
-2. Open settings and set **Bot token** and **Allowed users** (comma-separated).
-3. Adjust **Daily note time cutoff** if messages after midnight should roll to the previous note’s day.
+1. Install the plugin (build from source or copy `main.js`, `manifest.json`, `styles.css` into `.obsidian/plugins/telegram-llm-daily-journaling/` — folder name should match the plugin `id` in `manifest.json`).
+2. Open settings and set **Bot token** and **Allowed users** (comma-separated). Links in settings open [@BotFather](https://telegram.me/BotFather) and [@getmyid_bot](https://t.me/getmyid_bot) for convenience.
+3. Adjust **Daily note time cutoff** if messages after midnight should count toward the previous calendar day. Times use the **clock of the machine running Obsidian**, not Telegram’s UI timezone.
 4. Choose what happens after a successful save: **none**, **reaction**, or **delete message** in Telegram.
+5. Optionally enable **Download media**, **Transcription**, **reply context**, **timestamp headings**, and other toggles described in settings.
 
 ## Local transcription (optional)
 
@@ -23,11 +38,41 @@ Optional: transcribe **voice** and **audio** messages with a **local** OpenAI-co
 2. Enable **Transcription** in plugin settings.
 3. Set **ASR base URL** (typically ends with `/v1`, e.g. `http://127.0.0.1:8765/v1`), optional **API key**, and **model id** matching the server.
 
-Voice messages are downloaded from Telegram and sent to `POST {base}/audio/transcriptions` (OpenAI-style multipart).
+Audio is downloaded from Telegram (subject to the **20 MB** bot-file limit) and sent to `POST {base}/audio/transcriptions` (OpenAI-style multipart).
 
 ## Manual polling
 
 If **Disable auto reception** is on, the bot does not long-poll automatically. Use the ribbon action **Telegram daily journal: get updates** or the command **Get updates** while Obsidian is open.
+
+## How it works (short)
+
+1. The plugin runs a Telegram bot in the Obsidian process (long-polling unless auto reception is disabled).
+2. Allowed chats/users are checked in middleware; duplicate `update_id` values are skipped after a successful run (to tolerate Telegram retries).
+3. Text and media are formatted per settings, then appended to the correct **daily note** file via the vault API (serialized with a mutex for bot writes).
+4. Media downloads use Telegram’s `getFile` URL, save to a configurable folder under the vault, and insert an Obsidian embed plus optional caption.
+
+For a **user-facing** deep dive (settings field-by-field, path rules, download pipeline), see the [Wiki roadmap](#wiki-roadmap). The [obsidian-telegram-inbox wiki](https://github.com/icealtria/obsidian-telegram-inbox/wiki) (e.g. [Custom path](https://github.com/icealtria/obsidian-telegram-inbox/wiki/Custom-path)) is a good **reference for how we want GitHub wiki pages to read**—clear “available data,” examples, and filenames—once this plugin’s behavior is frozen enough to mirror that style.
+
+## Documentation & wiki
+
+| Resource | Status |
+|----------|--------|
+| This README | Living overview; updated as features stabilize. |
+| **GitHub Wiki** | Not published yet — planned pages are listed below. |
+
+### Wiki roadmap
+
+Use this checklist when you are ready to publish the repo wiki (after dev stabilizes or milestone release):
+
+- [ ] **Home** — What the plugin does, requirements, link back to this README.
+- [ ] **Settings reference** — Every toggle and field, with defaults and interaction (e.g. plain text vs Markdown entities, escaper, Wi‑Fi-only downloads).
+- [ ] **Daily note routing & time cutoff** — How the diary day is chosen (cutoff clock), contrast with [telegram-inbox Custom path](https://github.com/icealtria/obsidian-telegram-inbox/wiki/Custom-path) (this plugin **targets the daily note** from Daily Notes; no Mustache path template yet—document that explicitly, and add a “Future” subsection if custom paths are planned).
+- [ ] **Downloads & media** — Step-by-step: `getFile` → size limit (20 MB) → `vault.createBinary` under **Media folder** → `![[relative/path]]` in the note; albums, captions, and failure modes (network, cellular + Wi‑Fi-only).
+- [ ] **Transcription** — Audio flow, ASR multipart request, troubleshooting.
+- [ ] **Commands & diagnostics** — `/help`, `/last`, diagnostics log, idempotency behavior.
+- [ ] **Troubleshooting** — Token, allow list, Obsidian only on desktop, sync conflicts (rare).
+
+Until those pages exist, rely on **Settings** descriptions in Obsidian and the **Diagnostics** panel.
 
 ## Security
 
@@ -39,13 +84,17 @@ If **Disable auto reception** is on, the bot does not long-poll automatically. U
 ```bash
 npm install
 npm run build
+npm test
+npm run lint
 ```
 
-For development with watch mode:
+Watch mode:
 
 ```bash
 npm run dev
 ```
+
+CI runs `build` and `lint` on push/PR (see `.github/workflows/`). Add `npm test` there when you want tests in CI.
 
 ## License
 

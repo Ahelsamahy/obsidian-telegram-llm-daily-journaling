@@ -2,6 +2,25 @@ import { Composer, type Context } from "grammy";
 import type { JournalSettings } from "../settings/types";
 import { isAllowedChatType, isAuthorizedUser } from "./authorization";
 
+export type HandlerLog = (message: string) => void;
+
+/** Skip updates whose update_id was already processed successfully (Telegram retries). */
+export function createIdempotentUpdateMiddleware(
+	getLastProcessedUpdateId: () => number,
+	persistProcessedUpdateId: (updateId: number) => void | Promise<void>,
+	log: HandlerLog
+): Composer<Context> {
+	return new Composer().use(async (ctx: Context, next) => {
+		const id = ctx.update.update_id;
+		if (id <= getLastProcessedUpdateId()) {
+			log(`Skip duplicate update_id=${String(id)} (already processed).`);
+			return;
+		}
+		await next();
+		await persistProcessedUpdateId(id);
+	});
+}
+
 export function createRestrictToAllowedUsersMiddleware(
 	settings: JournalSettings,
 	log?: (message: string) => void

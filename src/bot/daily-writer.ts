@@ -27,7 +27,8 @@ export class DailyNoteWriter {
 
 	constructor(
 		private vault: Vault,
-		private settings: JournalSettings
+		private settings: JournalSettings,
+		private readonly onAppendSuccess?: () => void | Promise<void>
 	) {}
 
 	getVault(): Vault {
@@ -44,6 +45,7 @@ export class DailyNoteWriter {
 			}
 			const block = this.formatBlock(body, msg);
 			await insertMessage(this.vault, block, file);
+			await Promise.resolve(this.onAppendSuccess?.());
 		} finally {
 			release();
 		}

@@ -1,6 +1,7 @@
 import {
 	App,
 	ButtonComponent,
+	DropdownComponent,
 	Notice,
 	Plugin,
 	PluginSettingTab,
@@ -11,6 +12,11 @@ import {
 	ToggleComponent,
 	type TextComponent,
 } from "obsidian";
+import {
+	CUSTOM_ASR_MODEL_DROPDOWN_VALUE,
+	mergeAsrModelPickerIds,
+} from "./utils/huggingface-asr-models";
+import { WIKI_LOCAL_ASR_SETUP_URL } from "./const/wiki";
 import type { ActionAfterReception, JournalPluginApi } from "./settings/types";
 
 export class JournalSettingTab extends PluginSettingTab {
@@ -35,6 +41,13 @@ export class JournalSettingTab extends PluginSettingTab {
 			return t;
 		}
 		return t.slice(0, n) + "*".repeat(t.length - n);
+	}
+
+	/** Shell command to prefetch Hub weights (run from plugin repo after asr:install). */
+	static formatAsrDownloadCommand(modelId: string): string {
+		const id = modelId.trim() || "Qwen/Qwen3-ASR-0.6B";
+		const escaped = id.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+		return `# From this plugin repository (after npm run asr:install):\nnpm run asr:download-model -- "${escaped}"`;
 	}
 
 	private applyBotTokenMaskedDisplay(text: TextComponent): void {
@@ -150,7 +163,15 @@ export class JournalSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Daily note time cutoff")
 			.setDesc(
-				"Messages before this clock time count toward the previous calendar day. Format HH:MM (24h)."
+				createFragment((f) => {
+					f.appendText(
+						"Messages before this clock time count toward the previous calendar day. Format HH:MM (24h). Cutoff times and journal timestamps use "
+					);
+					f.createEl("strong", { text: "this device’s local clock" });
+					f.appendText(
+						" (the machine running Obsidian), not Telegram’s time zone."
+					);
+				})
 			)
 			.addText((text) =>
 				text
@@ -165,7 +186,7 @@ export class JournalSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Timestamp heading per entry")
 			.setDesc(
-				"When enabled, each captured message is prefixed with a markdown heading (###) showing the message date and time (YYYY-MM-DD HH:mm). When off, only the message text is appended."
+				"When enabled, each captured message is prefixed with a markdown heading (###) showing the message date and time (YYYY-MM-DD HH:mm). When off, only the message text is appended. If you edit the same daily note in Obsidian while a message is being saved, the vault usually merges writes; very fast simultaneous edits are rare."
 			)
 			.addToggle((toggle) =>
 				toggle
@@ -211,6 +232,20 @@ export class JournalSettingTab extends PluginSettingTab {
 					});
 			});
 
+		new Setting(containerEl)
+			.setName("Reply context in note")
+			.setDesc(
+				"When you reply to a message in Telegram, prepend a blockquote line (Re: …) with a short preview of the message you replied to, so the thread is visible in the note."
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.include_reply_context)
+					.onChange(async (value) => {
+						this.plugin.settings.include_reply_context = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
 		new Setting(containerEl).setName("Media").setHeading();
 
 		const downloadDirContainer = containerEl.createDiv();
@@ -243,6 +278,20 @@ export class JournalSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.download_dir)
 					.onChange(async (value) => {
 						this.plugin.settings.download_dir = value.trim();
+						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(downloadDirContainer)
+			.setName("Wi‑Fi only (downloads)")
+			.setDesc(
+				"When enabled, media downloads and transcription (audio download) run only if the browser reports Wi‑Fi or ethernet. If the connection type is unknown (typical on desktop), downloads are allowed. On Obsidian Mobile, large downloads may use cellular data unless this blocks them."
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.download_media_wifi_only)
+					.onChange(async (value) => {
+						this.plugin.settings.download_media_wifi_only = value;
 						await this.plugin.saveSettings();
 					})
 			);
@@ -338,17 +387,172 @@ export class JournalSettingTab extends PluginSettingTab {
 			});
 
 		new Setting(containerEl)
-			.setName("ASR model id")
+			.setName("Hugging Face token (optional)")
 			.setDesc(
-				"Must match a model name served by your local ASR (e.g. Qwen/Qwen3-ASR-0.6B)."
+				"Used only for “Refresh from Hugging Face” (and gated Hub listings). Not sent to your local ASR server. Store in vault settings; never share or log it."
 			)
-			.addText((text) =>
-				text
-					.setValue(this.plugin.settings.asr_model)
+			.addText((text) => {
+				text.inputEl.type = "password";
+				text.setPlaceholder("hf_…")
+					.setValue(this.plugin.settings.hf_token)
 					.onChange(async (value) => {
-						this.plugin.settings.asr_model = value.trim();
+						this.plugin.settings.hf_token = value.trim();
 						await this.plugin.saveSettings();
-					})
+					});
+			});
+
+		const pickerIds = mergeAsrModelPickerIds(
+			this.plugin.settings.asr_hf_model_ids_cache
+		);
+		const initialModel = this.plugin.settings.asr_model.trim();
+		const initialDropdownValue = pickerIds.includes(initialModel)
+			? initialModel
+			: CUSTOM_ASR_MODEL_DROPDOWN_VALUE;
+
+		let modelDropdownRef!: DropdownComponent;
+		let modelTextField!: TextComponent;
+
+		const customModelContainer = containerEl.createDiv();
+
+		const syncCustomModelRow = (): void => {
+			const v = modelDropdownRef.getValue();
+			customModelContainer.style.display =
+				v === CUSTOM_ASR_MODEL_DROPDOWN_VALUE ? "" : "none";
+		};
+
+		new Setting(containerEl)
+			.setName("ASR model")
+			.setDesc(
+				createFragment((f) => {
+					f.appendText(
+						"Preset or Hub list entry sets the model id in one click. Choose “Other” only when you need an id that is not listed. "
+					);
+					f.appendText("See ");
+					f.createEl("a", {
+						text: "Local ASR setup (wiki)",
+						href: WIKI_LOCAL_ASR_SETUP_URL,
+						attr: {
+							target: "_blank",
+							rel: "noopener noreferrer",
+						},
+					});
+					f.appendText(
+						" for downloading model weights and running the server on your machine."
+					);
+				})
+			)
+			.addDropdown((dropdown) => {
+				modelDropdownRef = dropdown;
+				for (const id of pickerIds) {
+					dropdown.addOption(id, id);
+				}
+				dropdown.addOption(
+					CUSTOM_ASR_MODEL_DROPDOWN_VALUE,
+					"Other (custom id)…"
+				);
+				dropdown.setValue(initialDropdownValue);
+				dropdown.onChange(async (value) => {
+					if (value === CUSTOM_ASR_MODEL_DROPDOWN_VALUE) {
+						modelTextField.setValue(this.plugin.settings.asr_model);
+						syncCustomModelRow();
+						return;
+					}
+					this.plugin.settings.asr_model = value;
+					modelTextField.setValue(value);
+					await this.plugin.saveSettings();
+					syncCustomModelRow();
+				});
+			});
+
+		new Setting(customModelContainer)
+			.setName("Custom model id")
+			.setDesc(
+				"Shown only for “Other”. This value is what the plugin sends to your local ASR server; prefetch weights on your machine via the button below (Obsidian cannot download models itself)."
+			)
+			.addText((text) => {
+				modelTextField = text;
+				text
+					.setPlaceholder("org/model-name")
+					.setValue(
+						initialDropdownValue === CUSTOM_ASR_MODEL_DROPDOWN_VALUE
+							? this.plugin.settings.asr_model
+							: ""
+					)
+					.onChange(async (value) => {
+						const trimmed = value.trim();
+						this.plugin.settings.asr_model = trimmed;
+						if (pickerIds.includes(trimmed)) {
+							modelDropdownRef.setValue(trimmed);
+						} else {
+							modelDropdownRef.setValue(
+								CUSTOM_ASR_MODEL_DROPDOWN_VALUE
+							);
+						}
+						await this.plugin.saveSettings();
+						syncCustomModelRow();
+					});
+			});
+
+		syncCustomModelRow();
+
+		new Setting(containerEl)
+			.setName("Prefetch model weights (terminal)")
+			.setDesc(
+				createFragment((f) => {
+					f.appendText(
+						"Downloads the Hub snapshot into the Hugging Face cache using the same venv as asr:install (huggingface_hub). Set HF_TOKEN in .env for gated repos. Copy the command and run it in a terminal from the plugin source folder. Details: "
+					);
+					f.createEl("a", {
+						text: "wiki",
+						href: WIKI_LOCAL_ASR_SETUP_URL,
+						attr: {
+							target: "_blank",
+							rel: "noopener noreferrer",
+						},
+					});
+					f.appendText(".");
+				})
+			)
+			.addButton((btn) =>
+				btn.setButtonText("Copy download command").onClick(() => {
+					const cmd = JournalSettingTab.formatAsrDownloadCommand(
+						this.plugin.settings.asr_model
+					);
+					void navigator.clipboard.writeText(cmd).then(
+						() => {
+							new Notice("Download command copied to clipboard.");
+						},
+						() => {
+							new Notice("Could not copy (clipboard permission).");
+						}
+					);
+				})
+			);
+
+		const cacheEpoch = this.plugin.settings.asr_hf_models_cache_epoch_ms;
+		const lastRefreshHint =
+			cacheEpoch > 0
+				? ` Last Hub refresh: ${new Date(cacheEpoch).toLocaleString()}.`
+				: "";
+
+		new Setting(containerEl)
+			.setName("Refresh ASR models from Hugging Face")
+			.setDesc(
+				`Loads ASR model ids from the public Hub JSON API (pipeline automatic-speech-recognition). Results are cached in plugin data for offline use.${lastRefreshHint}`
+			)
+			.addButton((btn) =>
+				btn.setButtonText("Refresh").onClick(async () => {
+					const r =
+						await this.plugin.refreshAsrModelsFromHuggingFace();
+					if (r.ok) {
+						new Notice(`Loaded ${r.count} ASR models from Hugging Face.`);
+						this.display();
+					} else {
+						new Notice(
+							`Refresh failed: ${r.error ?? "unknown"}. Presets and cached list still work.`
+						);
+					}
+				})
 			);
 
 		new Setting(containerEl).setName("Actions").setHeading();

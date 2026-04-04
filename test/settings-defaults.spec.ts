@@ -16,10 +16,17 @@ describe("DEFAULT_SETTINGS", () => {
 		assert.strictEqual(DEFAULT_SETTINGS.markdown_escaper, false);
 		assert.strictEqual(DEFAULT_SETTINGS.download_media, false);
 		assert.strictEqual(DEFAULT_SETTINGS.download_dir, "assets/telegram");
+		assert.strictEqual(DEFAULT_SETTINGS.last_processed_update_id, 0);
+		assert.strictEqual(DEFAULT_SETTINGS.last_journal_saved_epoch_ms, 0);
+		assert.strictEqual(DEFAULT_SETTINGS.include_reply_context, true);
+		assert.strictEqual(DEFAULT_SETTINGS.download_media_wifi_only, false);
 		assert.strictEqual(DEFAULT_SETTINGS.diagnostic_log_auto_refresh, true);
 		assert.strictEqual(
 			DEFAULT_SETTINGS.diagnostic_log_auto_refresh_interval_sec,
 			2
 		);
+		assert.strictEqual(DEFAULT_SETTINGS.hf_token, "");
+		assert.deepStrictEqual(DEFAULT_SETTINGS.asr_hf_model_ids_cache, []);
+		assert.strictEqual(DEFAULT_SETTINGS.asr_hf_models_cache_epoch_ms, 0);
 	});
 });

@@ -2,6 +2,7 @@ import { Bot } from "grammy";
 import type { Vault } from "obsidian";
 import type { JournalSettings } from "../settings/types";
 import {
+	createIdempotentUpdateMiddleware,
 	createRecordUpdateIdMiddleware,
 	createRestrictToAllowedUsersMiddleware,
 } from "./middleware";
@@ -12,6 +13,10 @@ const DEFAULT_OFFSET = 1;
 
 export type TelegramJournalBotOptions = {
 	log?: (message: string) => void;
+	/** Called after a line is appended to the daily note (vault write succeeded). */
+	onJournalSaved?: () => void | Promise<void>;
+	getLastProcessedUpdateId?: () => number;
+	persistProcessedUpdateId?: (updateId: number) => void | Promise<void>;
 };
 
 export class TelegramJournalBot {
@@ -30,7 +35,7 @@ export class TelegramJournalBot {
 		this.vault = vault;
 		this.settings = settings;
 		this.log = options?.log ?? (() => {});
-		this.writer = new DailyNoteWriter(vault, settings);
+		this.writer = new DailyNoteWriter(vault, settings, options?.onJournalSaved);
 		this.bot = new Bot(settings.token);
 
 		if (settings.disable_auto_reception) {
@@ -42,18 +47,30 @@ export class TelegramJournalBot {
 			});
 		}
 
-		this.setupMiddlewares();
+		this.setupMiddlewares(options);
 		this.setupHandlers();
 		this.setupErrorHandling();
 	}
 
-	private setupMiddlewares(): void {
-		this.bot.use(createRestrictToAllowedUsersMiddleware(this.settings, this.log));
+	private setupMiddlewares(options?: TelegramJournalBotOptions): void {
 		this.bot.use(
 			createRecordUpdateIdMiddleware((id) => {
 				this.update_id = id;
 			})
 		);
+		this.bot.use(createRestrictToAllowedUsersMiddleware(this.settings, this.log));
+		if (
+			options?.getLastProcessedUpdateId &&
+			options?.persistProcessedUpdateId
+		) {
+			this.bot.use(
+				createIdempotentUpdateMiddleware(
+					options.getLastProcessedUpdateId,
+					options.persistProcessedUpdateId,
+					this.log
+				)
+			);
+		}
 	}
 
 	private setupHandlers(): void {
