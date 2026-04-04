@@ -45,7 +45,7 @@ export class JournalSettingTab extends PluginSettingTab {
 
 	/** Shell command to prefetch Hub weights (run from plugin repo after asr:install). */
 	static formatAsrDownloadCommand(modelId: string): string {
-		const id = modelId.trim() || "Qwen/Qwen3-ASR-0.6B";
+		const id = modelId.trim() || "Qwen/Qwen3-ASR-1.7B";
 		const escaped = id.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 		return `# From this plugin repository (after npm run asr:install):\nnpm run asr:download-model -- "${escaped}"`;
 	}

@@ -8,7 +8,7 @@ import {
 
 describe("mergeAsrModelPickerIds", () => {
 	test("puts curated first then sorted extras", () => {
-		const merged = mergeAsrModelPickerIds(["zoo/a", "Qwen/Qwen3-ASR-0.6B"]);
+		const merged = mergeAsrModelPickerIds(["zoo/a", "Qwen/Qwen3-ASR-1.7B"]);
 		assert.ok(merged[0] === CURATED_ASR_MODEL_IDS[0]);
 		assert.ok(merged.includes("zoo/a"));
 		const idxZoo = merged.indexOf("zoo/a");

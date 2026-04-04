@@ -56,7 +56,7 @@ export const DEFAULT_SETTINGS: JournalSettings = {
 	transcription_enabled: false,
 	asr_base_url: "http://127.0.0.1:8765/v1",
 	asr_api_key: "",
-	asr_model: "Qwen/Qwen3-ASR-0.6B",
+	asr_model: "Qwen/Qwen3-ASR-1.7B",
 	hf_token: "",
 	asr_hf_model_ids_cache: [],
 	asr_hf_models_cache_epoch_ms: 0,

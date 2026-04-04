@@ -1,16 +1,23 @@
 import { requestUrl } from "obsidian";
 
-/** Curated ASR ids (offline fallback + top of the picker). Order matters. */
+/**
+ * Curated ASR ids (offline fallback + top of the picker). Order matters.
+ *
+ * The repo’s `scripts/asr-serve.sh` path uses [mlx-qwen3-asr](https://github.com/moona3k/mlx-qwen3-asr);
+ * the **Qwen** entries match that stack. Whisper / Distil rows are common Hub ASR ids for users who run
+ * a different local server; only pick them if your server actually loads that checkpoint (otherwise use
+ * “Other” or refresh-from-Hub). Add more entries only when the wiki documents how to serve them.
+ */
 export const CURATED_ASR_MODEL_IDS: readonly string[] = [
-	"Qwen/Qwen3-ASR-0.6B",
+	"Qwen/Qwen3-ASR-1.7B",
 	"Qwen/Qwen3-ASR-1.7B",
 	"openai/whisper-large-v3-turbo",
 	"openai/whisper-large-v3",
 	"distil-whisper/distil-large-v3",
 ];
-// TODO: maybe add more in the future if there are requests for them. The problem will be how to serve these models on the local machine.
 
-const HF_API_URL =
+/** Public Hub JSON API used by “Refresh from Hugging Face” (same URL as browser). */
+export const HF_ASR_MODELS_API_URL =
 	"https://huggingface.co/api/models?pipeline_tag=automatic-speech-recognition&limit=100";
 
 /** Dropdown sentinel when the active `asr_model` is not in the merged preset/cache list. */
@@ -94,7 +101,11 @@ export async function fetchAsrModelsFromHuggingFace(
 		headers["Authorization"] = `Bearer ${token}`;
 	}
 	try {
-		const res = await requestUrl({ url: HF_API_URL, method: "GET", headers });
+		const res = await requestUrl({
+			url: HF_ASR_MODELS_API_URL,
+			method: "GET",
+			headers,
+		});
 		if (res.status !== 200) {
 			return {
 				ids: [],

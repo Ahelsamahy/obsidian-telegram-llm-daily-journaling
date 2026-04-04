@@ -5,7 +5,7 @@ import { JournalSettingTab } from "../src/settings-tab";
 describe("JournalSettingTab.formatAsrDownloadCommand", () => {
 	test("uses default model when empty", () => {
 		const c = JournalSettingTab.formatAsrDownloadCommand("");
-		assert.ok(c.includes("Qwen/Qwen3-ASR-0.6B"));
+		assert.ok(c.includes("Qwen/Qwen3-ASR-1.7B"));
 		assert.ok(c.includes("npm run asr:download-model"));
 	});
 

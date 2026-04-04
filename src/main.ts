@@ -96,6 +96,7 @@ export default class TelegramLlmDailyJournalPlugin
 		count: number;
 		error?: string;
 	}> {
+		// Never log hf_token, Authorization headers, or raw Hub response bodies in diagnostics.
 		const { ids, error } = await fetchAsrModelsFromHuggingFace(
 			this.settings.hf_token
 		);

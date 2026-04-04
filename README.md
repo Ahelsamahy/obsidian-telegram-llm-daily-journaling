@@ -34,15 +34,60 @@ Commands in Telegram: `/start`, `/help`, `/last` (last successful append time on
 
 ## Local transcription (optional)
 
-The plugin talks to a **local** OpenAI-compatible ASR HTTP server; it does **not** download model weights. On **Apple Silicon**, this repo includes scripts and npm tasks for [mlx-qwen3-asr](https://github.com/moona3k/mlx-qwen3-asr):
+The plugin sends audio to a **local** OpenAI-compatible ASR server; it does **not** download model weights. Use **Apple Silicon** + this repo’s [mlx-qwen3-asr](https://github.com/moona3k/mlx-qwen3-asr) scripts, or any other compatible server—then point Obsidian at it.
 
-| Step | Command / action |
-|------|-------------------|
-| Install venv + package | `npm run asr:install` |
-| Prefetch Hub weights (optional) | `npm run asr:download-model -- "Qwen/Qwen3-ASR-0.6B"` (see `.env` for `HF_TOKEN` on gated models) |
-| Start server | `npm run asr:serve` (defaults in `scripts/asr-serve.sh`; optional `.env` for `MLX_ASR_*`) |
+**Rule:** The **ASR model** string in Obsidian must match what the server loads (e.g. the same Hub id as `MLX_ASR_MODEL` in `.env`). Changing the model in settings alone does not change the running server.
 
-Then in Obsidian: enable **Transcription**, set **ASR base URL** (e.g. `http://127.0.0.1:8765/v1`), optional **ASR API key**, and **ASR model** to match the server. Settings include a link to the full walkthrough: **[Local ASR setup (wiki)](https://github.com/Ahelsamahy/obsidian-telegram-llm-daily-journaling/wiki/Local-ASR-setup)**.
+### A. On your Mac (local ASR server)
+
+Work in a **clone of this repository** (so `scripts/` and `npm run asr:*` exist).
+
+1. **Environment file** — Copy [`.env.example`](.env.example) to `.env` in the repo root (`.env` is gitignored). Set at least:
+   - `MLX_ASR_API_KEY` — shared secret for the HTTP server (you will paste the same value into Obsidian as **ASR API key**).
+   - `MLX_ASR_HOST` / `MLX_ASR_PORT` — default `127.0.0.1` and `8765` if omitted.
+   - `MLX_ASR_MODEL` — Hugging Face repo id the server should load (e.g. `Qwen/Qwen3-ASR-1.7B`).
+   - `HF_TOKEN` (optional) — only needed for **gated** Hub models when prefetching (see below). Do not commit real tokens.
+
+   `TELEGRAM_LLM_DAILY_JOURNALING_DEV_VAULT` in `.env` is for `npm run deploy:dev` only; it does not affect transcription.
+
+   If a value contains **spaces** (common for vault paths), wrap it in **double quotes**, e.g. `TELEGRAM_LLM_DAILY_JOURNALING_DEV_VAULT="/path/to/My vault-Dev"`. Otherwise bash `source .env` in `asr:*` scripts will fail with `command not found` on the segment after the first space.
+
+2. **One-time Python stack** — From the repo root:
+
+   ```bash
+   npm run asr:install
+   ```
+
+   This creates `.venv-asr/` and installs `mlx-qwen3-asr[serve]`.
+
+3. **Prefetch weights (recommended)** — Before first run, or when you change `MLX_ASR_MODEL`:
+
+   ```bash
+   npm run asr:download-model -- "Qwen/Qwen3-ASR-1.7B"
+   ```
+
+   Use the same id as in `.env`, or rely on `MLX_ASR_MODEL` with no argument. Gated models need `HF_TOKEN` / `HUGGINGFACE_HUB_TOKEN` in `.env`.
+
+4. **Start the server** — Leave this process running while you use Obsidian:
+
+   ```bash
+   npm run asr:serve
+   ```
+
+   You should see server logs and no immediate exit. The OpenAI-compatible base URL is usually `http://127.0.0.1:8765/v1` (host/port must match `MLX_ASR_HOST` / `MLX_ASR_PORT`).
+
+### B. In Obsidian (same machine as the server)
+
+1. Open the plugin **Settings** for this plugin.
+2. Under **Local transcription**, turn **Enable transcription** on.
+3. **ASR base URL** — Must match the server, typically `http://127.0.0.1:8765/v1` (include `/v1` if your server expects it).
+4. **ASR API key** — Must match `MLX_ASR_API_KEY` from `.env` (same string as the default `local-dev-asr-key` if you did not change it).
+5. **ASR model** — Set to the **same** Hub id the server uses (`MLX_ASR_MODEL`). Use the dropdown / refresh-from-Hub tools if helpful; **Other (custom id)** is for ids not in the list.
+6. Optional: **Hugging Face token** in plugin settings is only for **refreshing the model list** from the Hub in the UI, not for your local ASR HTTP request.
+
+If something fails, open **Diagnostics** in settings and check for ASR HTTP errors.
+
+More detail: **[Local ASR setup (wiki)](https://github.com/Ahelsamahy/obsidian-telegram-llm-daily-journaling/wiki/Local-ASR-setup)**.
 
 Audio is downloaded from Telegram (subject to the **20 MB** bot-file limit) and sent to `POST {base}/audio/transcriptions` (OpenAI-style multipart).
 
@@ -83,6 +128,7 @@ Until those pages exist, rely on **Settings** descriptions in Obsidian, the **Di
 ## Security
 
 - The bot token and optional ASR key are stored only in your vault’s plugin data.
+- Keep repo-root `.env` (MLX ASR keys, HF tokens) **local and gitignored**; do not commit or paste tokens into issues or screenshots.
 - Do not share your vault or screen recordings of plugin settings.
 
 ## Development
@@ -100,7 +146,9 @@ Watch mode:
 npm run dev
 ```
 
-CI runs `build` and `lint` on push/PR (see `.github/workflows/`). Add `npm test` there when you want tests in CI.
+CI runs `build`, `lint`, and `npm test` on push/PR (see `.github/workflows/`). Tests set `HF_API_INTEGRATION=0` so the live Hugging Face Hub check is skipped in CI; run `npm test` locally without that env to exercise it.
+
+**GitHub wiki:** after editing pages under `.wiki/` (or on first run letting the script clone it), run `npm run wiki:deploy -- "commit message"`, or `WIKI_COMMIT_MSG=... npm run wiki:deploy`, or `npm run wiki:deploy` with a TTY to be prompted. Override clone URL with `WIKI_REPO_URL` if needed.
 
 ## License
 

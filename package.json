@@ -12,7 +12,8 @@
 		"deploy:dev": "npm run build && node scripts/deploy-dev.mjs",
 		"asr:install": "bash scripts/asr-install.sh",
 		"asr:serve": "bash scripts/asr-serve.sh",
-		"asr:download-model": "bash scripts/asr-download-model.sh"
+		"asr:download-model": "bash scripts/asr-download-model.sh",
+		"wiki:deploy": "node scripts/wiki-deploy.mjs"
 	},
 	"keywords": [],
 	"license": "0-BSD",
