@@ -5,6 +5,9 @@
 *.iml
 .idea
 
+# Local env (vault path for deploy:dev)
+.env
+
 # npm
 node_modules
 

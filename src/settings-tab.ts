@@ -16,22 +16,24 @@ export class JournalSettingTab extends PluginSettingTab {
 		this.plugin = plugin;
 	}
 
-	/** Shown as the input placeholder (field stays empty while a token is saved). */
-	private static botTokenPlaceholder(storedToken: string): string {
-		const t = storedToken.trim();
+	private static readonly BOT_TOKEN_VISIBLE_PREFIX = 6;
+
+	/** Plain text: first N characters visible, remainder shown as asterisks. */
+	static formatTokenMasked(token: string): string {
+		const t = token.trim();
 		if (t.length === 0) {
-			return "Paste bot token from @BotFather";
+			return "";
 		}
-		const head = t.slice(0, 8);
-		return t.length > 8
-			? `Starts with: ${head}…`
-			: `Starts with: ${head}`;
+		const n = JournalSettingTab.BOT_TOKEN_VISIBLE_PREFIX;
+		if (t.length <= n) {
+			return t;
+		}
+		return t.slice(0, n) + "*".repeat(t.length - n);
 	}
 
-	private applyBotTokenFieldPresentation(text: TextComponent): void {
-		text.setValue("");
-		text.setPlaceholder(
-			JournalSettingTab.botTokenPlaceholder(this.plugin.settings.token)
+	private applyBotTokenMaskedDisplay(text: TextComponent): void {
+		text.setValue(
+			JournalSettingTab.formatTokenMasked(this.plugin.settings.token)
 		);
 	}
 
@@ -44,32 +46,24 @@ export class JournalSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName("Bot token")
-			.setDesc("From @BotFather. Stored only in this vault.")
+			.setDesc(
+				"From @BotFather. Stored only in this vault. When not editing, the first six characters stay visible and the rest is shown as asterisks."
+			)
 			.addText((text) => {
-				text.inputEl.type = "password";
-				let dirty = false;
-				text.inputEl.addEventListener("input", () => {
-					dirty = true;
-				});
+				text.setPlaceholder("Paste bot token from @BotFather");
+				setTooltip(
+					text.inputEl,
+					"Click the field to edit the full token. After you leave the field, only the first six characters stay readable."
+				);
+				this.applyBotTokenMaskedDisplay(text);
 				text.inputEl.addEventListener("focus", () => {
-					dirty = false;
+					text.setValue(this.plugin.settings.token.trim());
 				});
-				this.applyBotTokenFieldPresentation(text);
 				text.inputEl.addEventListener("blur", () => {
 					void (async () => {
-						const v = text.getValue().trim();
-						const current = this.plugin.settings.token.trim();
-						if (v === "" && !dirty && current !== "") {
-							this.applyBotTokenFieldPresentation(text);
-							return;
-						}
-						if (v === current) {
-							this.applyBotTokenFieldPresentation(text);
-							return;
-						}
-						this.plugin.settings.token = v;
+						this.plugin.settings.token = text.getValue().trim();
 						await this.plugin.saveSettings();
-						this.applyBotTokenFieldPresentation(text);
+						this.applyBotTokenMaskedDisplay(text);
 					})();
 				});
 			});

@@ -1,8 +1,14 @@
 /*
-
-This CSS file will be included with your plugin, and
-available in the app when your plugin is enabled.
-
-If your plugin does not need CSS, delete this file.
-
+  Settings: action + reaction emoji on one row
 */
+.tg-journal-after-saved .setting-item-control {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--size-4-3);
+}
+
+.tg-journal-reaction-emoji-input {
+	max-width: 7em;
+	min-width: 3.5em;
+}
