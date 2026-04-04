@@ -8,7 +8,7 @@
 		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
 		"version": "node version-bump.mjs && git add manifest.json versions.json",
 		"lint": "eslint .",
-		"test": "node --test --require tsx/cjs --require ./test/register-obsidian.cjs \"test/**/*.spec.ts\"",
+		"test": "node scripts/run-tests.mjs",
 		"deploy:dev": "npm run build && node scripts/deploy-dev.mjs",
 		"asr:install": "bash scripts/asr-install.sh",
 		"asr:serve": "bash scripts/asr-serve.sh",
