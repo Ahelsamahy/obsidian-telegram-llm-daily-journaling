@@ -4,7 +4,7 @@ Obsidian plugin that appends Telegram messages to your **daily note** (same date
 
 Optional: transcribe **voice** and **audio** with a **local** OpenAI-compatible ASR server (for example [mlx-qwen3-asr](https://github.com/moona3k/mlx-qwen3-asr) on Apple Silicon).
 
-> **Development phase** — Behavior and settings may still change before a stable release. The plugin is usable day-to-day; treat the [Wiki roadmap](#wiki-roadmap) below as the plan for proper documentation once the surface area stabilizes.
+> **Development phase** — Behavior and settings may still change before a stable release. The plugin is usable day-to-day; the [GitHub Wiki](https://github.com/Ahelsamahy/obsidian-telegram-llm-daily-journaling/wiki) and [Wiki roadmap](#wiki-roadmap) below track user-facing docs as the surface area stabilizes.
 
 ## Features (overview)
 
@@ -34,9 +34,15 @@ Commands in Telegram: `/start`, `/help`, `/last` (last successful append time on
 
 ## Local transcription (optional)
 
-1. Run a compatible ASR HTTP server (e.g. `mlx-qwen3-asr serve` with an API key if you configured one).
-2. Enable **Transcription** in plugin settings.
-3. Set **ASR base URL** (typically ends with `/v1`, e.g. `http://127.0.0.1:8765/v1`), optional **API key**, and **model id** matching the server.
+The plugin talks to a **local** OpenAI-compatible ASR HTTP server; it does **not** download model weights. On **Apple Silicon**, this repo includes scripts and npm tasks for [mlx-qwen3-asr](https://github.com/moona3k/mlx-qwen3-asr):
+
+| Step | Command / action |
+|------|-------------------|
+| Install venv + package | `npm run asr:install` |
+| Prefetch Hub weights (optional) | `npm run asr:download-model -- "Qwen/Qwen3-ASR-0.6B"` (see `.env` for `HF_TOKEN` on gated models) |
+| Start server | `npm run asr:serve` (defaults in `scripts/asr-serve.sh`; optional `.env` for `MLX_ASR_*`) |
+
+Then in Obsidian: enable **Transcription**, set **ASR base URL** (e.g. `http://127.0.0.1:8765/v1`), optional **ASR API key**, and **ASR model** to match the server. Settings include a link to the full walkthrough: **[Local ASR setup (wiki)](https://github.com/Ahelsamahy/obsidian-telegram-llm-daily-journaling/wiki/Local-ASR-setup)**.
 
 Audio is downloaded from Telegram (subject to the **20 MB** bot-file limit) and sent to `POST {base}/audio/transcriptions` (OpenAI-style multipart).
 
@@ -51,28 +57,28 @@ If **Disable auto reception** is on, the bot does not long-poll automatically. U
 3. Text and media are formatted per settings, then appended to the correct **daily note** file via the vault API (serialized with a mutex for bot writes).
 4. Media downloads use Telegram’s `getFile` URL, save to a configurable folder under the vault, and insert an Obsidian embed plus optional caption.
 
-For a **user-facing** deep dive (settings field-by-field, path rules, download pipeline), see the [Wiki roadmap](#wiki-roadmap). The [obsidian-telegram-inbox wiki](https://github.com/icealtria/obsidian-telegram-inbox/wiki) (e.g. [Custom path](https://github.com/icealtria/obsidian-telegram-inbox/wiki/Custom-path)) is a good **reference for how we want GitHub wiki pages to read**—clear “available data,” examples, and filenames—once this plugin’s behavior is frozen enough to mirror that style.
+For a **user-facing** deep dive (settings field-by-field, path rules, download pipeline), see the [Wiki roadmap](#wiki-roadmap) and [GitHub Wiki](https://github.com/Ahelsamahy/obsidian-telegram-llm-daily-journaling/wiki). The [obsidian-telegram-inbox wiki](https://github.com/icealtria/obsidian-telegram-inbox/wiki) (e.g. [Custom path](https://github.com/icealtria/obsidian-telegram-inbox/wiki/Custom-path)) is a good **reference for how we want GitHub wiki pages to read**—clear “available data,” examples, and filenames—once this plugin’s behavior is frozen enough to mirror that style.
 
 ## Documentation & wiki
 
 | Resource | Status |
 |----------|--------|
 | This README | Living overview; updated as features stabilize. |
-| **GitHub Wiki** | Not published yet — planned pages are listed below. |
+| **[GitHub Wiki](https://github.com/Ahelsamahy/obsidian-telegram-llm-daily-journaling/wiki)** | Published: [Home](https://github.com/Ahelsamahy/obsidian-telegram-llm-daily-journaling/wiki), [Local ASR setup](https://github.com/Ahelsamahy/obsidian-telegram-llm-daily-journaling/wiki/Local-ASR-setup). |
 
 ### Wiki roadmap
 
-Use this checklist when you are ready to publish the repo wiki (after dev stabilizes or milestone release):
+Use this checklist as additional pages are written:
 
-- [ ] **Home** — What the plugin does, requirements, link back to this README.
+- [x] **Home** — Index and link to README.
+- [x] **Local ASR setup** — `mlx-qwen3-asr`, `npm run asr:*`, `.env`, Obsidian transcription settings.
 - [ ] **Settings reference** — Every toggle and field, with defaults and interaction (e.g. plain text vs Markdown entities, escaper, Wi‑Fi-only downloads).
 - [ ] **Daily note routing & time cutoff** — How the diary day is chosen (cutoff clock), contrast with [telegram-inbox Custom path](https://github.com/icealtria/obsidian-telegram-inbox/wiki/Custom-path) (this plugin **targets the daily note** from Daily Notes; no Mustache path template yet—document that explicitly, and add a “Future” subsection if custom paths are planned).
 - [ ] **Downloads & media** — Step-by-step: `getFile` → size limit (20 MB) → `vault.createBinary` under **Media folder** → `![[relative/path]]` in the note; albums, captions, and failure modes (network, cellular + Wi‑Fi-only).
-- [ ] **Transcription** — Audio flow, ASR multipart request, troubleshooting.
 - [ ] **Commands & diagnostics** — `/help`, `/last`, diagnostics log, idempotency behavior.
 - [ ] **Troubleshooting** — Token, allow list, Obsidian only on desktop, sync conflicts (rare).
 
-Until those pages exist, rely on **Settings** descriptions in Obsidian and the **Diagnostics** panel.
+Until those pages exist, rely on **Settings** descriptions in Obsidian, the **Diagnostics** panel, and the wiki pages above where relevant.
 
 ## Security
 

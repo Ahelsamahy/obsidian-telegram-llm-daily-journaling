@@ -11,6 +11,9 @@
 # Local Python venv for mlx-qwen3-asr (npm run asr:install)
 .venv-asr/
 
+# Cloned GitHub wiki (edit and push separately from plugin releases)
+.wiki/
+
 # npm
 node_modules
 
