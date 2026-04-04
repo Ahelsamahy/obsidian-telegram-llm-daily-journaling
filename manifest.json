@@ -3,7 +3,7 @@
 	"name": "Telegram LLM Daily Journaling",
 	"version": "0.1.1",
 	"minAppVersion": "0.15.0",
-	"description": "Append Telegram messages (and optional local ASR transcripts) to your daily note.",
+	"description": "Obsidian plugin that appends Telegram chats to your daily note, with optional local ASR for voice. It supports 50+ languages and accents.",
 	"author": "Ahelsamahy",
 	"authorUrl": "https://github.com/Ahelsamahy",
 	"isDesktopOnly": true
