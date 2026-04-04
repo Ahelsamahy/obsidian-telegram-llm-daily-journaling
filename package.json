@@ -13,7 +13,8 @@
 		"asr:install": "bash scripts/asr-install.sh",
 		"asr:serve": "bash scripts/asr-serve.sh",
 		"asr:download-model": "bash scripts/asr-download-model.sh",
-		"wiki:deploy": "node scripts/wiki-deploy.mjs"
+		"wiki:deploy": "node scripts/wiki-deploy.mjs",
+		"release": "node scripts/release.mjs"
 	},
 	"keywords": [],
 	"license": "0-BSD",

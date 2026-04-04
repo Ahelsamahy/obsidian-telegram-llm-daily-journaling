@@ -9,7 +9,7 @@ import { requestUrl } from "obsidian";
  * “Other” or refresh-from-Hub). Add more entries only when the wiki documents how to serve them.
  */
 export const CURATED_ASR_MODEL_IDS: readonly string[] = [
-	"Qwen/Qwen3-ASR-1.7B",
+	"Qwen/Qwen3-ASR-0.6B",
 	"Qwen/Qwen3-ASR-1.7B",
 	"openai/whisper-large-v3-turbo",
 	"openai/whisper-large-v3",

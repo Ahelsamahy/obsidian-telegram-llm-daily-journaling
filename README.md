@@ -150,6 +150,21 @@ CI runs `build`, `lint`, and `npm test` on push/PR (see `.github/workflows/`). T
 
 **GitHub wiki:** after editing pages under `.wiki/` (or on first run letting the script clone it), run `npm run wiki:deploy -- "commit message"`, or `WIKI_COMMIT_MSG=... npm run wiki:deploy`, or `npm run wiki:deploy` with a TTY to be prompted. Override clone URL with `WIKI_REPO_URL` if needed.
 
+### Releasing (GitHub Release + community listing)
+
+Official guides: **[Release your plugin with GitHub Actions](https://docs.obsidian.md/Plugins/Releasing/Release+your+plugin+with+GitHub+Actions)** and **[Submit your plugin](https://docs.obsidian.md/Plugins/Releasing/Submit+your+plugin)**.
+
+**One-time repo settings:** In GitHub → **Settings** → **Actions** → **General** → **Workflow permissions**, choose **Read and write permissions** so the release workflow can create draft releases (see the guide above).
+
+**Ship a version:**
+
+1. Ensure a clean git tree, then run `npm run release -- --dry-run` to mirror CI (`build`, `lint`, `test` with `HF_API_INTEGRATION=0`).
+2. Run `npm run release` (patch), or `npm run release -- minor` / `major`. This bumps `package.json`, syncs `manifest.json` / `versions.json` via `version-bump.mjs`, creates a git tag, and `git push --follow-tags`.
+3. Open **Actions** → **Release Obsidian plugin** should run on the tag push. When it finishes, open **Releases**: a **draft** release is created with `main.js`, `manifest.json`, and `styles.css` attached.
+4. Edit the draft: add release notes, then **Publish release**.
+
+**First listing in the community directory:** After a published GitHub Release whose tag matches `manifest.json`, follow **[Submit your plugin](https://docs.obsidian.md/Plugins/Releasing/Submit+your+plugin)** — open a PR against [`obsidian-releases` `community-plugins.json`](https://github.com/obsidianmd/obsidian-releases/edit/master/community-plugins.json) with `id`, `name`, `author`, `description`, and `repo` aligned with your `manifest.json`. Updates after approval are picked up from new GitHub Releases.
+
 ## License
 
 0BSD (see [LICENSE](LICENSE)).
