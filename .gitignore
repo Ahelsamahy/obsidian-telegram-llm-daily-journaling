@@ -5,8 +5,11 @@
 *.iml
 .idea
 
-# Local env (vault path for deploy:dev)
+# Local env (vault path for deploy:dev, optional MLX_ASR_* for asr:serve)
 .env
+
+# Local Python venv for mlx-qwen3-asr (npm run asr:install)
+.venv-asr/
 
 # npm
 node_modules

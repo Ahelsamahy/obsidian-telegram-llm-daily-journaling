@@ -3,24 +3,29 @@ import type { JournalSettings } from "../settings/types";
 import { isAllowedChatType, isAuthorizedUser } from "./authorization";
 
 export function createRestrictToAllowedUsersMiddleware(
-	settings: JournalSettings
+	settings: JournalSettings,
+	log?: (message: string) => void
 ): Composer<Context> {
+	const write = log ?? (() => {});
 	return new Composer().use(async (ctx: Context, next) => {
 		const chat = ctx.chat;
 
 		if (!chat || !isAllowedChatType(chat.type)) {
-			console.debug("Unauthorized chat type:", chat?.type, chat?.id);
+			write(
+				`Blocked: chat type "${String(chat?.type)}" (id ${String(chat?.id)})`
+			);
 			return;
 		}
 
-		const userId = chat.id;
-		const username = chat.username;
+		// Prefer sender id (correct in groups/supergroups); private chat falls back to chat.id.
+		const userId = ctx.from?.id ?? chat.id;
+		const username = ctx.from?.username ?? chat.username;
 
 		if (isAuthorizedUser(settings, userId, username)) {
 			await next();
 		} else {
-			console.debug(
-				`Unauthorized access attempt: User ${String(username ?? userId)} at ${new Date().toISOString()}`
+			write(
+				`Blocked: user id ${String(userId)} @${String(username ?? "n/a")} not in allowed list (chat ${chat.type} ${String(chat.id)})`
 			);
 		}
 	});

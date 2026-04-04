@@ -5,6 +5,23 @@ import type { JournalSettings } from "../settings/types";
 import { getDiaryWithTimeCutoff } from "../utils/diary";
 import { insertMessage } from "../io";
 
+/** Formats text to append to the daily note (leading newline, optional time heading, body). */
+export function formatJournalBlock(
+	settings: Pick<JournalSettings, "entry_timestamp_heading">,
+	body: string,
+	msgDateUnix: number
+): string {
+	const trimmed = body.trim();
+	if (trimmed === "") {
+		return "\n";
+	}
+	if (settings.entry_timestamp_heading) {
+		const t = moment.unix(msgDateUnix).format("YYYY-MM-DD HH:mm");
+		return `\n### ${t}\n\n${trimmed}\n`;
+	}
+	return `\n${trimmed}\n`;
+}
+
 export class DailyNoteWriter {
 	private mutex = new Mutex();
 
@@ -12,6 +29,10 @@ export class DailyNoteWriter {
 		private vault: Vault,
 		private settings: JournalSettings
 	) {}
+
+	getVault(): Vault {
+		return this.vault;
+	}
 
 	async appendBlock(body: string, msg: Message): Promise<void> {
 		const release = await this.mutex.acquire();
@@ -29,7 +50,6 @@ export class DailyNoteWriter {
 	}
 
 	private formatBlock(body: string, msg: Message): string {
-		const t = moment.unix(msg.date).format("YYYY-MM-DD HH:mm");
-		return `\n### ${t}\n\n${body.trim()}\n`;
+		return formatJournalBlock(this.settings, body, msg.date);
 	}
 }

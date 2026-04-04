@@ -8,6 +8,8 @@ export default tseslint.config(
 		languageOptions: {
 			globals: {
 				...globals.browser,
+				/** Obsidian runtime (obsidian.d.ts) */
+				createFragment: "readonly",
 			},
 			parserOptions: {
 				projectService: {
@@ -38,6 +40,7 @@ export default tseslint.config(
 		"main.js",
 		"test/**/*.ts",
 		"scripts/**/*.mjs",
+		"scripts/asr-*.sh",
 		"test/register-obsidian.cjs",
 	]),
 );

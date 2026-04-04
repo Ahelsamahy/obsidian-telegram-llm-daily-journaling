@@ -1,4 +1,5 @@
 import { Notice, Plugin } from "obsidian";
+import { DiagnosticLog } from "./diagnostic-log";
 import { DEFAULT_SETTINGS, type JournalSettings } from "./settings/types";
 import type { JournalPluginApi } from "./settings/types";
 import { JournalSettingTab } from "./settings-tab";
@@ -10,8 +11,10 @@ export default class TelegramLlmDailyJournalPlugin
 {
 	settings: JournalSettings;
 	bot: TelegramJournalBot | null = null;
+	private readonly diagnosticLog = new DiagnosticLog();
 
 	onload(): void {
+		this.appendDiagnosticLog("Plugin loaded.");
 		void this.bootstrap();
 	}
 
@@ -75,25 +78,48 @@ export default class TelegramLlmDailyJournalPlugin
 		await this.saveData(this.settings);
 	}
 
+	appendDiagnosticLog(message: string): void {
+		this.diagnosticLog.append(message);
+	}
+
+	getDiagnosticLogText(): string {
+		return this.diagnosticLog.getText();
+	}
+
+	clearDiagnosticLog(): void {
+		this.diagnosticLog.clear();
+	}
+
 	async initBot(): Promise<void> {
 		try {
 			if (!this.settings.token) {
 				new Notice("Telegram bot token is not set.");
+				this.appendDiagnosticLog("Init skipped: no bot token.");
 				return;
 			}
 			if (this.settings.allow_users.length === 0) {
 				new Notice("Add at least one allowed user in settings.");
+				this.appendDiagnosticLog("Init skipped: no allowed users.");
 				return;
 			}
 
 			await this.stopBot();
-			this.bot = new TelegramJournalBot(this.app.vault, this.settings);
+			this.bot = new TelegramJournalBot(this.app.vault, this.settings, {
+				log: (m) => this.appendDiagnosticLog(m),
+			});
 
 			if (!this.settings.disable_auto_reception) {
 				this.startBot();
+			} else {
+				this.appendDiagnosticLog(
+					"Auto reception disabled — use ribbon or command to fetch updates."
+				);
 			}
 		} catch (error) {
 			console.error("Telegram daily journal: failed to init bot", error);
+			this.appendDiagnosticLog(
+				`Init failed: ${error instanceof Error ? error.message : String(error)}`
+			);
 			new Notice("Failed to start Telegram bot (see console).");
 			this.bot = null;
 		}
@@ -102,6 +128,7 @@ export default class TelegramLlmDailyJournalPlugin
 	startBot(): void {
 		if (this.bot) {
 			new Notice("Telegram bot starting");
+			this.appendDiagnosticLog("Long-poll receiver started.");
 			this.bot.start();
 		}
 	}
@@ -121,9 +148,12 @@ export default class TelegramLlmDailyJournalPlugin
 	async getUpdates(): Promise<void> {
 		if (!this.bot) {
 			new Notice("Bot is not running.");
+			this.appendDiagnosticLog("getUpdates: bot not initialized.");
 			return;
 		}
+		this.appendDiagnosticLog("Manual getUpdates…");
 		await this.bot.getUpdates();
+		this.appendDiagnosticLog("Manual getUpdates finished.");
 	}
 
 	private async safeGetUpdates(): Promise<void> {

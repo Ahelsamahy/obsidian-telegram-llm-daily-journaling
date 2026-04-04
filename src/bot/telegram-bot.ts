@@ -10,22 +10,35 @@ import { setupCommands, setupMessageHandlers } from "./handlers";
 
 const DEFAULT_OFFSET = 1;
 
+export type TelegramJournalBotOptions = {
+	log?: (message: string) => void;
+};
+
 export class TelegramJournalBot {
 	bot: Bot;
 	vault: Vault;
 	settings: JournalSettings;
 	update_id = 0;
 	private writer: DailyNoteWriter;
+	private log: (message: string) => void;
 
-	constructor(vault: Vault, settings: JournalSettings) {
+	constructor(
+		vault: Vault,
+		settings: JournalSettings,
+		options?: TelegramJournalBotOptions
+	) {
 		this.vault = vault;
 		this.settings = settings;
+		this.log = options?.log ?? (() => {});
 		this.writer = new DailyNoteWriter(vault, settings);
 		this.bot = new Bot(settings.token);
 
 		if (settings.disable_auto_reception) {
 			void this.bot.init().catch((e: unknown) => {
 				console.error("Telegram bot init failed:", e);
+				this.log(
+					`Bot init error: ${e instanceof Error ? e.message : String(e)}`
+				);
 			});
 		}
 
@@ -35,7 +48,7 @@ export class TelegramJournalBot {
 	}
 
 	private setupMiddlewares(): void {
-		this.bot.use(createRestrictToAllowedUsersMiddleware(this.settings));
+		this.bot.use(createRestrictToAllowedUsersMiddleware(this.settings, this.log));
 		this.bot.use(
 			createRecordUpdateIdMiddleware((id) => {
 				this.update_id = id;
@@ -49,19 +62,26 @@ export class TelegramJournalBot {
 			this.bot,
 			this.settings,
 			this.writer,
-			this.settings.token
+			this.settings.token,
+			this.log
 		);
 	}
 
 	private setupErrorHandling(): void {
 		this.bot.catch((err) => {
 			console.error("Telegram bot error:", err);
+			this.log(
+				`Bot error: ${err instanceof Error ? err.message : String(err)}`
+			);
 		});
 	}
 
 	start(): void {
 		void this.bot.start().catch((e: unknown) => {
 			console.error("Telegram bot start failed:", e);
+			this.log(
+				`start() failed: ${e instanceof Error ? e.message : String(e)}`
+			);
 		});
 	}
 
@@ -82,6 +102,9 @@ export class TelegramJournalBot {
 			}
 		} catch (error) {
 			console.error("Error getting updates:", error);
+			this.log(
+				`getUpdates error: ${error instanceof Error ? error.message : String(error)}`
+			);
 			throw error;
 		}
 	}

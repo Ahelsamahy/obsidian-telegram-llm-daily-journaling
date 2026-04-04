@@ -12,3 +12,37 @@
 	max-width: 7em;
 	min-width: 3.5em;
 }
+
+/* Diagnostics: description stacked above full-width log, buttons below */
+.tg-journal-diagnostics {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-2);
+	width: 100%;
+	margin-bottom: var(--size-4-4);
+}
+
+.tg-journal-diagnostics-desc {
+	margin: 0;
+}
+
+.tg-journal-diag-textarea-wrap {
+	width: 100%;
+}
+
+.tg-journal-diag-log {
+	display: block;
+	width: 100%;
+	min-height: 14rem;
+	box-sizing: border-box;
+	font-family: var(--font-monospace-theme), var(--font-monospace), monospace;
+	font-size: var(--font-ui-smaller);
+	resize: vertical;
+}
+
+.tg-journal-diag-toolbar {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--size-4-2);
+	align-items: center;
+}
