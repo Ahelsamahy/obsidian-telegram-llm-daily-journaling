@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-telegram-llm-daily-journaling",
-	"version": "0.1.1",
+	"version": "0.1.2",
 	"description": "Append Telegram messages to Obsidian daily notes with optional local transcription.",
 	"main": "main.js",
 	"scripts": {
