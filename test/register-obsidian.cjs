@@ -26,7 +26,9 @@ Module._load = function (request) {
 			Notice: class {},
 			Plugin: class {},
 			Setting: class {},
+			ButtonComponent: class {},
 			PluginSettingTab: class {},
+			Modal: class {},
 			App: class {},
 		};
 	}

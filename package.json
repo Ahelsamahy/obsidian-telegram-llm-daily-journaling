@@ -16,6 +16,7 @@
 		"asr:docker:build": "docker compose -f docker-compose.asr.yml build",
 		"asr:docker:up": "docker compose -f docker-compose.asr.yml up -d",
 		"asr:docker:down": "docker compose -f docker-compose.asr.yml down",
+		"receiver:start": "node companion/receiver/server.mjs",
 		"wiki:deploy": "node scripts/wiki-deploy.mjs",
 		"release": "node scripts/release.mjs"
 	},
@@ -36,6 +37,7 @@
 	"dependencies": {
 		"@telegraf/entity": "^0.5.0",
 		"async-mutex": "^0.5.0",
+		"better-sqlite3": "^12.10.0",
 		"grammy": "^1.36.3",
 		"obsidian": "latest",
 		"obsidian-daily-notes-interface": "^0.9.4"

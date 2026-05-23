@@ -2,10 +2,12 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import type { Message } from "grammy/types";
 import {
+	buildMediaJournalBody,
 	buildMessageReceiptMarker,
 	formatJournalBlock,
 	hasMessageReceiptMarker,
 } from "../src/bot/daily-writer";
+import { insertTextBeforeMarker } from "../src/io";
 
 describe("formatJournalBlock", () => {
 	test("without timestamp heading: leading newline and trimmed body only", () => {
@@ -61,5 +63,33 @@ describe("formatJournalBlock", () => {
 			"%% tg-journal:chat=123456789;message=321 %%",
 		].join("\n");
 		assert.strictEqual(hasMessageReceiptMarker(content, msg), true);
+	});
+
+	test("builds media body with embed first and optional text second", () => {
+		assert.strictEqual(
+			buildMediaJournalBody("Journaling/2026/05/telegram-media/file.jpg", ""),
+			"![[Journaling/2026/05/telegram-media/file.jpg]]"
+		);
+		assert.strictEqual(
+			buildMediaJournalBody(
+				"Journaling/2026/05/telegram-media/file.jpg",
+				"caption"
+			),
+			"![[Journaling/2026/05/telegram-media/file.jpg]]\n\ncaption"
+		);
+	});
+
+	test("inserts transcript before receipt marker without duplicating it", () => {
+		const marker = "%% tg-journal:chat=1;message=2 %%";
+		const initial = `![[file.m4a]]\n\n${marker}`;
+		const patched = insertTextBeforeMarker(initial, marker, "hello there");
+		assert.strictEqual(
+			patched,
+			"![[file.m4a]]\n\nhello there\n\n%% tg-journal:chat=1;message=2 %%"
+		);
+		assert.strictEqual(
+			insertTextBeforeMarker(patched, marker, "hello there"),
+			patched
+		);
 	});
 });

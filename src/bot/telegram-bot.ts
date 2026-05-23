@@ -15,15 +15,16 @@ export type TelegramJournalBotOptions = {
 	log?: (message: string) => void;
 	/** Called after a line is appended to the daily note (vault write succeeded). */
 	onJournalSaved?: () => void | Promise<void>;
-	getLastProcessedUpdateId?: () => number;
-	persistProcessedUpdateId?: (updateId: number) => void | Promise<void>;
+	getLastCommittedUpdateId?: () => number;
+	persistCommittedUpdateId?: (updateId: number) => void | Promise<void>;
+	persistSeenUpdateId?: (updateId: number) => void | Promise<void>;
 };
 
 export class TelegramJournalBot {
 	bot: Bot;
 	vault: Vault;
 	settings: JournalSettings;
-	update_id = 0;
+	lastSeenUpdateId = 0;
 	private writer: DailyNoteWriter;
 	private log: (message: string) => void;
 
@@ -54,19 +55,20 @@ export class TelegramJournalBot {
 
 	private setupMiddlewares(options?: TelegramJournalBotOptions): void {
 		this.bot.use(
-			createRecordUpdateIdMiddleware((id) => {
-				this.update_id = id;
+			createRecordUpdateIdMiddleware(async (id) => {
+				this.lastSeenUpdateId = id;
+				await Promise.resolve(options?.persistSeenUpdateId?.(id));
 			})
 		);
 		this.bot.use(createRestrictToAllowedUsersMiddleware(this.settings, this.log));
 		if (
-			options?.getLastProcessedUpdateId &&
-			options?.persistProcessedUpdateId
+			options?.getLastCommittedUpdateId &&
+			options?.persistCommittedUpdateId
 		) {
 			this.bot.use(
 				createIdempotentUpdateMiddleware(
-					options.getLastProcessedUpdateId,
-					options.persistProcessedUpdateId,
+					options.getLastCommittedUpdateId,
+					options.persistCommittedUpdateId,
 					this.log
 				)
 			);
@@ -104,7 +106,10 @@ export class TelegramJournalBot {
 
 	async getUpdates(): Promise<void> {
 		try {
-			let offset = this.update_id ? this.update_id + 1 : DEFAULT_OFFSET;
+			let offset =
+				this.settings.last_committed_update_id > 0
+					? this.settings.last_committed_update_id + 1
+					: DEFAULT_OFFSET;
 
 			while (true) {
 				const updates = await this.bot.api.getUpdates({
@@ -117,13 +122,13 @@ export class TelegramJournalBot {
 
 				for (const update of updates) {
 					await this.bot.handleUpdate(update);
+					offset = update.update_id + 1;
 				}
 
-				if (!this.update_id) {
+				if (updates.length === 0) {
 					break;
 				}
 
-				offset = this.update_id + 1;
 				await this.bot.api.getUpdates({
 					offset,
 					limit: 1,

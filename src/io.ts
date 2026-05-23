@@ -14,6 +14,30 @@ export function appendMessage(existingContent: string, message: string): string 
 	return `${existingContent}\n${message}`;
 }
 
+export function insertTextBeforeMarker(
+	existingContent: string,
+	marker: string,
+	text: string
+): string {
+	const idx = existingContent.indexOf(marker);
+	if (idx === -1) {
+		return existingContent;
+	}
+	const transcript = text.trim();
+	if (transcript === "") {
+		return existingContent;
+	}
+	const beforeMarker = existingContent.slice(0, idx);
+	if (beforeMarker.endsWith(`\n\n${transcript}\n\n`)) {
+		return existingContent;
+	}
+	return (
+		beforeMarker.replace(/\s*$/, "") +
+		`\n\n${transcript}\n\n` +
+		existingContent.slice(idx)
+	);
+}
+
 export async function insertMessage(
 	vault: Vault,
 	message: string,

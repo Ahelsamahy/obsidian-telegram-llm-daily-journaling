@@ -51,12 +51,12 @@ export function createRestrictToAllowedUsersMiddleware(
 }
 
 export function createRecordUpdateIdMiddleware(
-	updateIdCallback: (updateId: number) => void
+	updateIdCallback: (updateId: number) => void | Promise<void>
 ): Composer<Context> {
 	return new Composer().use(async (ctx: Context, next) => {
 		const updateId = ctx.update?.update_id;
 		if (updateId) {
-			updateIdCallback(updateId);
+			await updateIdCallback(updateId);
 		}
 		await next();
 	});

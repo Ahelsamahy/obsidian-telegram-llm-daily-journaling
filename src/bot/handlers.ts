@@ -4,12 +4,14 @@ import type { File, Message } from "grammy/types";
 import type { JournalSettings } from "../settings/types";
 import type { DailyNoteWriter } from "./daily-writer";
 import { transcribeWithLocalAsr } from "./asr";
-import { downloadAndSaveFile } from "../utils/download";
+import { saveBinaryToVault } from "../utils/download";
 import { messageToObsidianText } from "../utils/telegram-markdown";
-import { generateMediaFilename } from "./media-filename";
+import { buildMediaJournalBody } from "./daily-writer";
+import { getExt } from "./media-filename";
 import { prefixBodyWithReplyContext } from "../utils/reply-context";
 import { isMediaDownloadAllowedByNetworkPolicy } from "../utils/network";
 import type { HandlerLog } from "./middleware";
+import { buildVaultMediaPathForMessage } from "../utils/media-path";
 
 export type { HandlerLog } from "./middleware";
 
@@ -139,26 +141,28 @@ async function downloadAndAppendMedia(
 		return;
 	}
 
-	const filename = generateMediaFilename(msg, file);
-	const url = `https://api.telegram.org/file/bot${token}/${file.file_path}`;
-	const vaultPath = normalizePath(
-		`${settings.download_dir}/${filename}`
-	).replace(/^\/+/, "");
+	const buffer = await downloadTelegramFile(token, file.file_path);
+	const target = await writer.getTargetPathsForMessage(msg);
+	const vaultPath = buildVaultMediaPathForMessage(
+		target.file,
+		settings.media_subfolder_name,
+		msg,
+		file.file_unique_id ?? "unknown",
+		getExt(file.file_path)
+	);
 
-	const ok = await downloadAndSaveFile(writer.getVault(), url, vaultPath);
-	if (!ok) {
+	const saved = await saveBinaryToVault(writer.getVault(), vaultPath, buffer);
+	if (!saved.ok) {
 		log(`Download media failed (vault write or network): ${vaultPath}`);
 		void ctx.reply(
-			`Could not save the file to the vault (${filename}). Check the diagnostics log or console.`
+			"Could not save the file to the vault. Check the diagnostics log or console."
 		);
 		return;
 	}
 
 	const caption = messageToObsidianText(msg, settings).trim();
-	const embedPath = vaultPath.replace(/^\/+/, "");
-	let body = caption
-		? `![[${embedPath}]]\n\n${caption}`
-		: `![[${embedPath}]]`;
+	const embedPath = saved.path.replace(/^\/+/, "");
+	let body = buildMediaJournalBody(embedPath, caption);
 	body = prefixBodyWithReplyContext(body, msg, settings);
 	log(
 		`Download media OK: ${embedPath}${caption ? `, caption ${String(caption.length)} chars` : ""}`
@@ -240,20 +244,39 @@ async function transcribeAndAppend(
 	log(
 		`Transcribe: downloaded ${String(buf.byteLength)} bytes (${file.file_path})`
 	);
-	const filename = pickAudioFilename(file.file_path);
-	log(`Transcribe: ASR POST model=${settings.asr_model}…`);
-	const transcript = await transcribeWithLocalAsr(settings, buf, filename);
-	const label =
-		kind === "voice"
-			? "(voice)"
-			: kind === "document"
-				? "(audio file)"
-				: "(audio)";
-	log(`Transcribe: OK, length ${String(transcript.length)} chars`);
-	let body = `${label}\n\n${transcript}`;
+	const target = await writer.getTargetPathsForMessage(msg);
+	const vaultPath = buildVaultMediaPathForMessage(
+		target.file,
+		settings.media_subfolder_name,
+		msg,
+		file.file_unique_id ?? "unknown",
+		getExt(file.file_path)
+	);
+	const saved = await saveBinaryToVault(writer.getVault(), vaultPath, buf);
+	if (!saved.ok) {
+		throw new Error(`Could not save audio file to vault (${vaultPath})`);
+	}
+	const caption = messageToObsidianText(msg, settings).trim();
+	let body = buildMediaJournalBody(saved.path, caption);
 	body = prefixBodyWithReplyContext(body, msg, settings);
 	await writer.appendBlock(body, msg);
 	await executePostAction(ctx, settings, log);
+	const filename = pickAudioFilename(file.file_path);
+	log(`Transcribe: ASR POST model=${settings.asr_model}…`);
+	try {
+		const transcript = await transcribeWithLocalAsr(
+			settings,
+			buf,
+			filename
+		);
+		log(`Transcribe: OK, length ${String(transcript.length)} chars`);
+		await writer.patchTranscriptForMessage(msg, transcript);
+	} catch (error) {
+		const detail =
+			error instanceof Error ? error.message : String(error);
+		log(`Transcribe failed after saving audio: ${detail}`);
+		void ctx.reply(`Audio was saved, but transcription failed: ${detail}`);
+	}
 }
 
 export function setupMessageHandlers(

@@ -18,6 +18,13 @@ import {
 } from "./utils/huggingface-asr-models";
 import { WIKI_LOCAL_ASR_SETUP_URL } from "./const/wiki";
 import type { ActionAfterReception, JournalPluginApi } from "./settings/types";
+import {
+	isValidDailyCutoff,
+	isValidMediaSubfolderName,
+	isValidReceiverBaseUrl,
+	normalizeAllowedUsersInput,
+} from "./settings/validation";
+import { FailedItemsModal } from "./ui/failed-items-modal";
 
 export class JournalSettingTab extends PluginSettingTab {
 	plugin: JournalPluginApi;
@@ -74,6 +81,27 @@ export class JournalSettingTab extends PluginSettingTab {
 		this.clearDiagAutoRefresh();
 		containerEl.empty();
 
+		new Setting(containerEl).setName("Capture mode").setHeading();
+
+		new Setting(containerEl)
+			.setName("Capture mode")
+			.setDesc(
+				"Use embedded bot for direct polling in Obsidian, or remote receiver to sync from an always-on companion service."
+			)
+			.addDropdown((dropdown) => {
+				dropdown.addOption("embedded_bot", "Embedded bot");
+				dropdown.addOption("remote_receiver", "Remote receiver");
+				dropdown.setValue(this.plugin.settings.capture_mode);
+				dropdown.onChange(async (value) => {
+					this.plugin.settings.capture_mode = value as
+						| "embedded_bot"
+						| "remote_receiver";
+					await this.plugin.saveSettings();
+					await this.plugin.initBot();
+					this.display();
+				});
+			});
+
 		new Setting(containerEl).setName("Telegram").setHeading();
 
 		new Setting(containerEl)
@@ -108,6 +136,9 @@ export class JournalSettingTab extends PluginSettingTab {
 					void (async () => {
 						this.plugin.settings.token = text.getValue().trim();
 						await this.plugin.saveSettings();
+						if (this.plugin.settings.capture_mode === "embedded_bot") {
+							await this.plugin.initBot();
+						}
 						this.applyBotTokenMaskedDisplay(text);
 					})();
 				});
@@ -132,16 +163,16 @@ export class JournalSettingTab extends PluginSettingTab {
 				})
 			)
 			.addText((text) => {
-				text.setPlaceholder("User1,12345678")
-					.setValue(this.plugin.settings.allow_users.join(","))
-					.onChange(async (value) => {
-						this.plugin.settings.allow_users = value
-							.split(",")
-							.map((s) => s.trim())
-							.filter(Boolean);
-						await this.plugin.saveSettings();
-					});
-			});
+					text.setPlaceholder("User1,12345678")
+						.setValue(this.plugin.settings.allow_users.join(","))
+						.onChange(async (value) => {
+							this.plugin.settings.allow_users = normalizeAllowedUsersInput(
+								value.split(",")
+							);
+							await this.plugin.saveSettings();
+							await this.plugin.initBot();
+						});
+				});
 
 		new Setting(containerEl)
 			.setName("Disable auto reception")
@@ -174,13 +205,23 @@ export class JournalSettingTab extends PluginSettingTab {
 				})
 			)
 			.addText((text) =>
-				text
-					.setPlaceholder("00:00")
-					.setValue(this.plugin.settings.daily_note_time_cutoff)
-					.onChange(async (value) => {
-						this.plugin.settings.daily_note_time_cutoff = value.trim();
-						await this.plugin.saveSettings();
-					})
+					text
+						.setPlaceholder("00:00")
+						.setValue(this.plugin.settings.daily_note_time_cutoff)
+						.onChange(async (value) => {
+							const trimmed = value.trim();
+							if (
+								trimmed.length === 5 &&
+								!isValidDailyCutoff(trimmed)
+							) {
+								new Notice(
+									"Daily note cutoff must use HH:MM in 24-hour time."
+								);
+								return;
+							}
+							this.plugin.settings.daily_note_time_cutoff = trimmed;
+							await this.plugin.saveSettings();
+						})
 			);
 
 		new Setting(containerEl)
@@ -270,17 +311,124 @@ export class JournalSettingTab extends PluginSettingTab {
 			: "none";
 
 		new Setting(downloadDirContainer)
-			.setName("Media folder")
-			.setDesc("Folder path under the vault root (e.g. assets/telegram). Created if missing.")
+			.setName("Media subfolder name")
+			.setDesc(
+				"Attachments are stored next to the monthly daily-note folder under this subfolder name (for example telegram-media)."
+			)
 			.addText((text) =>
 				text
-					.setPlaceholder("Assets/Telegram")
-					.setValue(this.plugin.settings.download_dir)
+					.setPlaceholder("telegram-media")
+					.setValue(this.plugin.settings.media_subfolder_name)
 					.onChange(async (value) => {
-						this.plugin.settings.download_dir = value.trim();
+						const trimmed = value.trim();
+						if (
+							trimmed.length > 0 &&
+							!isValidMediaSubfolderName(trimmed)
+						) {
+							new Notice(
+								"Media subfolder name can only contain letters, numbers, dots, dashes, and underscores."
+							);
+							return;
+						}
+						this.plugin.settings.media_subfolder_name = trimmed;
 						await this.plugin.saveSettings();
 					})
 			);
+
+		if (this.plugin.settings.capture_mode === "remote_receiver") {
+			new Setting(containerEl).setName("Remote receiver").setHeading();
+
+			new Setting(containerEl)
+				.setName("Receiver base URL")
+				.setDesc("Base URL of the always-on receiver service on your VPS.")
+				.addText((text) =>
+					text
+						.setPlaceholder("https://receiver.example.com")
+						.setValue(this.plugin.settings.receiver_base_url)
+						.onChange(async (value) => {
+							const trimmed = value.trim();
+							if (
+								trimmed !== "" &&
+								!isValidReceiverBaseUrl(trimmed)
+							) {
+								new Notice(
+									"Receiver URL must start with http:// or https://."
+								);
+								return;
+							}
+							this.plugin.settings.receiver_base_url = trimmed;
+							await this.plugin.saveSettings();
+						})
+				);
+
+			new Setting(containerEl)
+				.setName("Receiver API token")
+				.setDesc("Bearer token used to fetch queued journal events.")
+				.addText((text) => {
+					text.inputEl.type = "password";
+					text
+						.setPlaceholder("Receiver API token")
+						.setValue(this.plugin.settings.receiver_api_token)
+						.onChange(async (value) => {
+							this.plugin.settings.receiver_api_token = value.trim();
+							await this.plugin.saveSettings();
+						});
+				});
+
+			new Setting(containerEl)
+				.setName("Sync on startup")
+				.setDesc("Pull queued receiver events when the plugin loads.")
+				.addToggle((toggle) =>
+					toggle
+						.setValue(this.plugin.settings.receiver_sync_on_startup)
+						.onChange(async (value) => {
+							this.plugin.settings.receiver_sync_on_startup = value;
+							await this.plugin.saveSettings();
+							await this.plugin.initBot();
+						})
+				);
+
+			new Setting(containerEl)
+				.setName("Sync interval (seconds)")
+				.setDesc("Polling interval used while Obsidian stays open in remote mode.")
+				.addText((text) =>
+					text
+						.setPlaceholder("30")
+						.setValue(
+							String(this.plugin.settings.receiver_sync_interval_sec)
+						)
+						.onChange(async (value) => {
+							const parsed = Number(value.trim());
+							if (!Number.isFinite(parsed) || parsed < 5) {
+								new Notice("Sync interval must be 5 seconds or more.");
+								return;
+							}
+							this.plugin.settings.receiver_sync_interval_sec =
+								Math.round(parsed);
+							await this.plugin.saveSettings();
+							await this.plugin.initBot();
+						})
+				);
+
+			new Setting(containerEl)
+				.setName("Batch size")
+				.setDesc("Maximum number of queued events to fetch per sync call.")
+				.addText((text) =>
+					text
+						.setPlaceholder("20")
+						.setValue(String(this.plugin.settings.receiver_batch_size))
+						.onChange(async (value) => {
+							const parsed = Number(value.trim());
+							if (!Number.isFinite(parsed) || parsed < 1) {
+								new Notice("Batch size must be at least 1.");
+								return;
+							}
+							this.plugin.settings.receiver_batch_size =
+								Math.round(parsed);
+							await this.plugin.saveSettings();
+						})
+				);
+		}
 
 		new Setting(downloadDirContainer)
 			.setName("Wi‑fi only (downloads)")
@@ -559,10 +707,44 @@ export class JournalSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName("Restart bot")
-			.setDesc("Reload settings and reconnect to Telegram.")
+			.setDesc("Reload settings and reconnect the current capture mode.")
 			.addButton((btn) =>
 				btn.setButtonText("Restart").onClick(async () => {
 					await this.plugin.initBot();
+				})
+			);
+
+		new Setting(containerEl)
+			.setName("Sync now")
+			.setDesc("Fetch queued remote events or run a manual embedded update pickup.")
+			.addButton((btn) =>
+				btn.setButtonText("Sync").onClick(async () => {
+					await this.plugin.getUpdates();
+				})
+			);
+
+		new Setting(containerEl)
+			.setName("Health check")
+			.setDesc("Verify daily notes, receiver connectivity, import queue, and ASR configuration.")
+			.addButton((btn) =>
+				btn.setButtonText("Run").onClick(async () => {
+					const issues = await this.plugin.runHealthCheck();
+					if (issues.length === 0) {
+						new Notice("Health check passed.");
+					} else {
+						new Notice(
+							`Health check found ${String(issues.length)} issue(s).`
+						);
+					}
+				})
+			);
+
+		new Setting(containerEl)
+			.setName("Failed items")
+			.setDesc("Inspect and retry failed remote imports or transcription jobs.")
+			.addButton((btn) =>
+				btn.setButtonText("Open").onClick(() => {
+					new FailedItemsModal(this.app, this.plugin).open();
 				})
 			);
 

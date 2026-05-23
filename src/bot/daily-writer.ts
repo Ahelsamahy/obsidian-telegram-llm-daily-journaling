@@ -1,9 +1,9 @@
 import { Mutex } from "async-mutex";
-import { moment, TFile, type Vault } from "obsidian";
+import { TFile, moment, type Vault } from "obsidian";
 import type { Message } from "grammy/types";
 import type { JournalSettings } from "../settings/types";
-import { getDiaryWithTimeCutoff } from "../utils/diary";
-import { appendMessage } from "../io";
+import { getDiaryTargetPaths, getDiaryWithTimeCutoff } from "../utils/diary";
+import { appendMessage, insertTextBeforeMarker } from "../io";
 
 /** Formats text to append to the daily note (leading newline, optional time heading, body). */
 export function formatJournalBlock(
@@ -33,6 +33,14 @@ export function hasMessageReceiptMarker(
 	return existingContent.includes(buildMessageReceiptMarker(msg));
 }
 
+export function buildMediaJournalBody(
+	embedPath: string,
+	text: string
+): string {
+	const trimmed = text.trim();
+	return trimmed === "" ? `![[${embedPath}]]` : `![[${embedPath}]]\n\n${trimmed}`;
+}
+
 export class DailyNoteWriter {
 	private mutex = new Mutex();
 
@@ -44,6 +52,17 @@ export class DailyNoteWriter {
 
 	getVault(): Vault {
 		return this.vault;
+	}
+
+	async getTargetPathsForMessage(msg: Message): Promise<{
+		file: TFile;
+		mediaDir: string;
+	}> {
+		const { noteFile, mediaDir } = await getDiaryTargetPaths(
+			this.settings,
+			moment.unix(msg.date)
+		);
+		return { file: noteFile, mediaDir };
 	}
 
 	async appendBlock(body: string, msg: Message): Promise<boolean> {
@@ -67,6 +86,36 @@ export class DailyNoteWriter {
 				await Promise.resolve(this.onAppendSuccess?.());
 			}
 			return appended;
+		} finally {
+			release();
+		}
+	}
+
+	async patchTranscriptForMessage(
+		msg: Message,
+		transcript: string
+	): Promise<boolean> {
+		const release = await this.mutex.acquire();
+		try {
+			const file = await getDiaryWithTimeCutoff(
+				this.settings,
+				moment.unix(msg.date)
+			);
+			const marker = buildMessageReceiptMarker(msg);
+			let changed = false;
+			await this.vault.process(file, (existingContent) => {
+				if (!existingContent.includes(marker)) {
+					return existingContent;
+				}
+				const nextContent = insertTextBeforeMarker(
+					existingContent,
+					marker,
+					transcript
+				);
+				changed = nextContent !== existingContent;
+				return nextContent;
+			});
+			return changed;
 		} finally {
 			release();
 		}

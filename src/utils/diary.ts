@@ -1,4 +1,4 @@
-import { moment } from "obsidian";
+import { moment, normalizePath, type TFile } from "obsidian";
 import {
 	createDailyNote,
 	getAllDailyNotes,
@@ -32,7 +32,7 @@ export function getAdjustedDateForTimeCutoff(
 export async function getDiaryWithTimeCutoff(
 	settings: JournalSettings,
 	messageDate?: moment.Moment
-) {
+): Promise<TFile> {
 	const date = messageDate ?? moment();
 	const adjustedDate = getAdjustedDateForTimeCutoff(
 		date,
@@ -43,8 +43,26 @@ export async function getDiaryWithTimeCutoff(
 	const dailyNote = getDailyNote(adjustedDate, dailyNotes);
 
 	if (dailyNote) {
-		return dailyNote;
+		return dailyNote as TFile;
 	}
 
-	return await createDailyNote(adjustedDate);
+	return (await createDailyNote(adjustedDate)) as TFile;
+}
+
+export async function getDiaryTargetPaths(
+	settings: Pick<JournalSettings, "daily_note_time_cutoff" | "media_subfolder_name"> &
+		JournalSettings,
+	messageDate?: moment.Moment
+): Promise<{ noteFile: TFile; mediaDir: string }> {
+	const noteFile = await getDiaryWithTimeCutoff(settings, messageDate);
+	const noteDir =
+		noteFile.parent?.path && noteFile.parent.path !== "/"
+			? noteFile.parent.path
+			: "";
+	const mediaDir = normalizePath(
+		noteDir === ""
+			? settings.media_subfolder_name
+			: `${noteDir}/${settings.media_subfolder_name}`
+	);
+	return { noteFile, mediaDir };
 }
