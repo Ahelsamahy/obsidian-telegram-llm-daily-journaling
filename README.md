@@ -15,6 +15,7 @@ Optional: transcribe **voice** and **audio** with a **local** OpenAI-compatible 
 - **After save** — In Telegram: no action, reaction, or delete the message.
 - **Diagnostics** — In-plugin log (with optional auto-refresh) for debugging.
 - **Resilience** — Duplicate Telegram `update_id` handling, file size limits aligned with the Bot API, optional Wi‑Fi–only downloads where the browser exposes network type.
+- **Backfill-friendly polling** — A manual pickup run drains all pending Telegram batches, and each saved entry carries a hidden message receipt so delayed or replayed updates can be skipped safely instead of being duplicated.
 
 Commands in Telegram: `/start`, `/help`, `/last` (last successful append time on this device).
 
@@ -31,6 +32,12 @@ Commands in Telegram: `/start`, `/help`, `/last` (last successful append time on
 3. Adjust **Daily note time cutoff** if messages after midnight should count toward the previous calendar day. Times use the **clock of the machine running Obsidian**, not Telegram’s UI timezone.
 4. Choose what happens after a successful save: **none**, **reaction**, or **delete message** in Telegram.
 5. Optionally enable **Download media**, **Transcription**, **reply context**, **timestamp headings**, and other toggles described in settings.
+
+### Delayed pickup and missed days
+
+If Obsidian is opened late, the plugin can still import pending bot updates and route them to the diary day based on each Telegram message timestamp plus your configured cutoff. The plugin now stores a hidden receipt with each saved Telegram message so a replayed update can be recognized and skipped safely.
+
+Telegram itself does impose one hard limit: pending bot updates are only kept for up to 24 hours on Telegram’s servers. If Obsidian and the bot are offline longer than that, older messages are no longer available through `getUpdates`, so they cannot be recovered automatically by the plugin alone. Source: Telegram Bot API `getUpdates` docs: https://core.telegram.org/bots/api#getupdates
 
 ## Local transcription (optional)
 
@@ -75,6 +82,35 @@ Work in a **clone of this repository** (so `scripts/` and `npm run asr:*` exist)
    ```
 
    You should see server logs and no immediate exit. The OpenAI-compatible base URL is usually `http://127.0.0.1:8765/v1` (host/port must match `MLX_ASR_HOST` / `MLX_ASR_PORT`).
+
+### A2. Docker option (OpenAI-compatible local ASR)
+
+If you want a reproducible transcription runtime, you can run the ASR endpoint in Docker.
+
+From the repo root:
+
+```bash
+docker compose -f docker-compose.asr.yml build
+docker compose -f docker-compose.asr.yml up -d
+```
+
+Checks:
+
+```bash
+curl http://127.0.0.1:8765/health
+```
+
+The endpoint exposed for Obsidian is still:
+
+- `ASR base URL`: `http://127.0.0.1:8765/v1`
+- `ASR API key`: value of `MLX_ASR_API_KEY` from `.env`
+- `ASR model`: value of `ASR_MODEL` from `.env` if set, otherwise `small`
+
+Notes:
+
+- The first transcription request may take longer because model weights are downloaded and cached in the `whisper-cache` Docker volume.
+- This Docker stack uses `faster-whisper` and serves `POST /v1/audio/transcriptions` (OpenAI-style response `{ "text": "..." }`), which matches what this plugin expects.
+- Do not point this Docker stack at `MLX_ASR_MODEL=Qwen/...`: that variable is for the native `mlx-qwen3-asr` flow above, not the Docker fallback server.
 
 ### B. In Obsidian (same machine as the server)
 

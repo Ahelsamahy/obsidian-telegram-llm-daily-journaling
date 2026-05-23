@@ -13,6 +13,9 @@
 		"asr:install": "bash scripts/asr-install.sh",
 		"asr:serve": "bash scripts/asr-serve.sh",
 		"asr:download-model": "bash scripts/asr-download-model.sh",
+		"asr:docker:build": "docker compose -f docker-compose.asr.yml build",
+		"asr:docker:up": "docker compose -f docker-compose.asr.yml up -d",
+		"asr:docker:down": "docker compose -f docker-compose.asr.yml down",
 		"wiki:deploy": "node scripts/wiki-deploy.mjs",
 		"release": "node scripts/release.mjs"
 	},

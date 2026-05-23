@@ -104,16 +104,28 @@ export class TelegramJournalBot {
 
 	async getUpdates(): Promise<void> {
 		try {
-			const offset = this.update_id ? this.update_id + 1 : DEFAULT_OFFSET;
-			const updates = await this.bot.api.getUpdates({ offset });
+			let offset = this.update_id ? this.update_id + 1 : DEFAULT_OFFSET;
 
-			for (const update of updates) {
-				await this.bot.handleUpdate(update);
-			}
+			while (true) {
+				const updates = await this.bot.api.getUpdates({
+					offset,
+					limit: 100,
+				});
+				if (updates.length === 0) {
+					break;
+				}
 
-			if (updates.length > 0 && this.update_id) {
+				for (const update of updates) {
+					await this.bot.handleUpdate(update);
+				}
+
+				if (!this.update_id) {
+					break;
+				}
+
+				offset = this.update_id + 1;
 				await this.bot.api.getUpdates({
-					offset: this.update_id + 1,
+					offset,
 					limit: 1,
 				});
 			}

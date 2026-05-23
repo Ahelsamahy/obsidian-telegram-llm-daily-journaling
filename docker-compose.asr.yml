@@ -1,0 +1,24 @@
+services:
+  asr:
+    build:
+      context: .
+      dockerfile: Dockerfile.asr
+    image: obsidian-telegram-local-asr:latest
+    env_file:
+      - .env
+    environment:
+      # Keep auth compatibility with the MLX path, but use a separate model env
+      # because this container runs faster-whisper rather than mlx-qwen3-asr.
+      MLX_ASR_API_KEY: ${MLX_ASR_API_KEY:-local-dev-asr-key}
+      ASR_API_KEY: ${ASR_API_KEY:-${MLX_ASR_API_KEY:-local-dev-asr-key}}
+      ASR_MODEL: ${ASR_MODEL:-small}
+      ASR_DEVICE: ${ASR_DEVICE:-cpu}
+      ASR_COMPUTE_TYPE: ${ASR_COMPUTE_TYPE:-int8}
+    ports:
+      - "${MLX_ASR_PORT:-8765}:8765"
+    volumes:
+      - whisper-cache:/root/.cache/huggingface
+    restart: unless-stopped
+
+volumes:
+  whisper-cache:

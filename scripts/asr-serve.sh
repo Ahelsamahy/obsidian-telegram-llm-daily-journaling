@@ -19,4 +19,10 @@ KEY="${MLX_ASR_API_KEY:-local-dev-asr-key}"
 HOST="${MLX_ASR_HOST:-127.0.0.1}"
 PORT="${MLX_ASR_PORT:-8765}"
 MODEL="${MLX_ASR_MODEL:-Qwen/Qwen3-ASR-0.6B}"
-exec mlx-qwen3-asr serve --host "$HOST" --port "$PORT" --api-key "$KEY" --model "$MODEL"
+# Use the venv's Python directly so the repo can be moved without breaking
+# console-script shebangs recorded at install time.
+exec .venv-asr/bin/python -m mlx_qwen3_asr.cli serve \
+	--host "$HOST" \
+	--port "$PORT" \
+	--api-key "$KEY" \
+	--model "$MODEL"

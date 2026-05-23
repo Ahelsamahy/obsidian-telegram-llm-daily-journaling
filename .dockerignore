@@ -1,0 +1,8 @@
+.git
+.github
+.wiki
+.venv-asr
+node_modules
+.DS_Store
+.env
+main.js
